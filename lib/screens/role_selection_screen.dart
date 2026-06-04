@@ -37,7 +37,7 @@ class RoleSelectionScreen extends StatelessWidget {
               const SizedBox(height: 24),
               const Center(
                 child: Text(
-                  'Rent Wheels',
+                  'GaadiSaathi',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 32,

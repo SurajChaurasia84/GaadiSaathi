@@ -44,7 +44,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          _currentIndex == 0 ? 'Rent Wheels' : 'My Inbox',
+          _currentIndex == 0 ? 'GaadiSaathi' : 'My Inbox',
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         actions: [
