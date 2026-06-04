@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "rentwheels" "\0"
+            VALUE "CompanyName", "com.gaadisaathi.rent.apps" "\0"
+            VALUE "FileDescription", "GaadiSaathi" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "rentwheels" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "rentwheels.exe" "\0"
-            VALUE "ProductName", "rentwheels" "\0"
+            VALUE "InternalName", "GaadiSaathi" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.gaadisaathi.rent.apps. All rights reserved." "\0"
+            VALUE "OriginalFilename", "gaadisaathi.exe" "\0"
+            VALUE "ProductName", "GaadiSaathi" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
