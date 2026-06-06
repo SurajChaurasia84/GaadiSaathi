@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
 import '../../models/chat.dart';
+import '../../widgets/theme_selector.dart';
 import '../chat_screen.dart';
 import '../role_selection_screen.dart';
 
@@ -16,13 +17,13 @@ class OwnerDashboardScreen extends StatelessWidget {
     final chats = appState.chatThreads.where((t) => t.ownerGmail == appState.currentGmail).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0F19),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Owner Console',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold),
         ),
         actions: [
           // Quick Switch Simulator Mode helper
@@ -42,8 +43,9 @@ class OwnerDashboardScreen extends StatelessWidget {
               style: TextStyle(color: Color(0xFF536DFE), fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
+          buildThemeSelector(context, appState),
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.white54),
+            icon: Icon(Icons.logout_rounded, color: context.textColor54),
             onPressed: () {
               appState.logout();
               Navigator.pushAndRemoveUntil(
@@ -77,14 +79,14 @@ class OwnerDashboardScreen extends StatelessWidget {
                   const SizedBox(height: 20),
 
                   // 3. Vehicle Preview Card
-                  _buildVehicleDetailCard(vehicle),
+                  _buildVehicleDetailCard(context, vehicle),
                   const SizedBox(height: 24),
 
                   // 4. Chat Inbox List
-                  const Text(
+                  Text(
                     'INBOX / INCOMING BOOKINGS',
                     style: TextStyle(
-                      color: Colors.white30,
+                      color: context.textColor30,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.0,
@@ -92,7 +94,7 @@ class OwnerDashboardScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   chats.isEmpty
-                      ? _buildEmptyInboxCard()
+                      ? _buildEmptyInboxCard(context)
                       : ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
@@ -116,22 +118,22 @@ class OwnerDashboardScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         children: [
           const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 48),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No Registered Vehicle Found',
-            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Please register a vehicle to begin receiving customer booking inquiries.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white54, fontSize: 13),
+            style: TextStyle(color: context.textColor54, fontSize: 13),
           ),
           const SizedBox(height: 20),
           ElevatedButton(
@@ -148,11 +150,15 @@ class OwnerDashboardScreen extends StatelessWidget {
   Widget _buildServiceToggleCard(BuildContext context, AppState appState, Vehicle vehicle) {
     final isOn = vehicle.isServiceOn;
 
+    final isDark = context.isDarkMode;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isOn ? const Color(0xFF132D24) : const Color(0xFF2E1A1A),
+        color: isOn 
+            ? (isDark ? const Color(0xFF132D24) : const Color(0xFFE6F4EA)) 
+            : (isDark ? const Color(0xFF2E1A1A) : const Color(0xFFFCE8E6)),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isOn ? const Color(0xFF10B981).withOpacity(0.5) : const Color(0xFFEF4444).withOpacity(0.5),
@@ -160,7 +166,9 @@ class OwnerDashboardScreen extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: isOn ? const Color(0x3310B981) : const Color(0x33EF4444),
+            color: isOn 
+                ? const Color(0xFF10B981).withOpacity(isDark ? 0.2 : 0.05) 
+                : const Color(0xFFEF4444).withOpacity(isDark ? 0.2 : 0.05),
             blurRadius: 15,
             spreadRadius: 1,
           )
@@ -196,7 +204,7 @@ class OwnerDashboardScreen extends StatelessWidget {
                       ? 'Your vehicle is visible to customers within 3 km. Get ready for chats!'
                       : 'Your vehicle is hidden. Toggle ON to start taking bookings.',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
+                    color: context.textColor70,
                     fontSize: 12,
                     height: 1.3,
                   ),
@@ -227,9 +235,9 @@ class OwnerDashboardScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0x11FFFFFF)),
+        border: Border.all(color: context.isDarkMode ? const Color(0x11FFFFFF) : const Color(0x0A000000)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -237,14 +245,14 @@ class OwnerDashboardScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.payments_rounded, color: Colors.white70, size: 20),
-                  SizedBox(width: 8),
+                  Icon(Icons.payments_rounded, color: context.textColor70, size: 20),
+                  const SizedBox(width: 8),
                   Text(
                     'Monthly Platform Rent',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: context.textColor,
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
                     ),
@@ -273,7 +281,7 @@ class OwnerDashboardScreen extends StatelessWidget {
           Text(
             'Vehicle Owners are charged ₹50 every month to list. Booking fees are ₹0.',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
+              color: context.textColor54,
               fontSize: 12,
               height: 1.3,
             ),
@@ -328,16 +336,16 @@ class OwnerDashboardScreen extends StatelessWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
+          backgroundColor: Theme.of(context).cardColor,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Simulate Platform Rent Payment', style: TextStyle(color: Colors.white)),
-          content: const Column(
+          title: Text('Simulate Platform Rent Payment', style: TextStyle(color: context.textColor)),
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'This will simulate charging ₹50 from your Gmail account to fulfill the owner monthly fee.',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+                style: TextStyle(color: context.textColor70, fontSize: 13),
               ),
               SizedBox(height: 12),
               Text(
@@ -349,7 +357,7 @@ class OwnerDashboardScreen extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+              child: Text('Cancel', style: TextStyle(color: context.textColor54)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -371,12 +379,12 @@ class OwnerDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildVehicleDetailCard(Vehicle vehicle) {
+  Widget _buildVehicleDetailCard(BuildContext context, Vehicle vehicle) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x0AFFFFFF)),
+        border: Border.all(color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -400,7 +408,7 @@ class OwnerDashboardScreen extends StatelessWidget {
                   children: [
                     Text(
                       vehicle.model,
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: context.textColor, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -428,27 +436,27 @@ class OwnerDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyInboxCard() {
+  Widget _buildEmptyInboxCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 40),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x0AFFFFFF)),
+        border: Border.all(color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000)),
       ),
-      child: const Center(
+      child: Center(
         child: Column(
           children: [
-            Icon(Icons.chat_bubble_outline_rounded, color: Colors.white24, size: 36),
-            SizedBox(height: 12),
+            Icon(Icons.chat_bubble_outline_rounded, color: context.textColor30, size: 36),
+            const SizedBox(height: 12),
             Text(
               'No Booking Chats Yet',
-              style: TextStyle(color: Colors.white30, fontSize: 14, fontWeight: FontWeight.bold),
+              style: TextStyle(color: context.textColor30, fontSize: 14, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
               'When customers chat with you, they show here.',
-              style: TextStyle(color: Colors.white24, fontSize: 11),
+              style: TextStyle(color: context.textColor30.withOpacity(0.8), fontSize: 11),
             ),
           ],
         ),
@@ -460,9 +468,9 @@ class OwnerDashboardScreen extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x0AFFFFFF)),
+        border: Border.all(color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -475,7 +483,7 @@ class OwnerDashboardScreen extends StatelessWidget {
         ),
         title: Text(
           chat.customerName,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+          style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 14),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -485,11 +493,11 @@ class OwnerDashboardScreen extends StatelessWidget {
               chat.lastMessageText,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+              style: TextStyle(color: context.textColor54, fontSize: 12),
             ),
           ],
         ),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white38, size: 14),
+        trailing: Icon(Icons.arrow_forward_ios_rounded, color: context.textColor30, size: 14),
         onTap: () {
           Navigator.push(
             context,

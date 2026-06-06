@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/vehicle.dart';
 import '../../providers/app_state.dart';
+import '../../widgets/theme_selector.dart';
 import 'owner_dashboard_screen.dart';
 
 class OwnerRegisterScreen extends StatefulWidget {
@@ -106,18 +107,21 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
   Widget build(BuildContext context) {
     final photoList = _presetPhotos[_selectedType]!;
 
+    final appState = Provider.of<AppState>(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0F19),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Register Vehicle',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold),
         ),
         actions: [
+          buildThemeSelector(context, appState),
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.white54),
+            icon: Icon(Icons.logout_rounded, color: context.textColor54),
             onPressed: () {
               Provider.of<AppState>(context, listen: false).logout();
               Navigator.pop(context);
@@ -133,10 +137,10 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                Text(
                   'List Your Vehicle',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: context.textColor,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
@@ -145,7 +149,7 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
                 Text(
                   'Provide your vehicle details. Customers will view these photos and rates to initiate bookings.',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
+                    color: context.textColor54,
                     fontSize: 13,
                     height: 1.4,
                   ),
@@ -153,10 +157,10 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
                 const SizedBox(height: 32),
 
                 // Vehicle Type Segment Picker
-                const Text(
+                Text(
                   'VEHICLE TYPE',
                   style: TextStyle(
-                    color: Colors.white30,
+                    color: context.textColor30,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.0,
@@ -190,10 +194,10 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
                           margin: const EdgeInsets.symmetric(horizontal: 4),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF10B981) : const Color(0xFF1E293B),
+                            color: isSelected ? const Color(0xFF10B981) : Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color: isSelected ? Colors.transparent : const Color(0xFF2E3B4E),
+                              color: isSelected ? Colors.transparent : (context.isDarkMode ? const Color(0xFF2E3B4E) : const Color(0xFFE2E8F0)),
                               width: 1,
                             ),
                           ),
@@ -201,14 +205,14 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
                             children: [
                               Icon(
                                 icon,
-                                color: isSelected ? Colors.white : Colors.white70,
+                                color: isSelected ? Colors.white : context.textColor70,
                                 size: 24,
                               ),
                               const SizedBox(height: 6),
                               Text(
                                 type.displayName,
                                 style: TextStyle(
-                                  color: isSelected ? Colors.white : Colors.white70,
+                                  color: isSelected ? Colors.white : context.textColor70,
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -225,13 +229,13 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
                 // Vehicle Model Input
                 TextFormField(
                   controller: _modelController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: context.textColor),
                   decoration: InputDecoration(
                     labelText: 'Vehicle Model Name',
-                    labelStyle: const TextStyle(color: Colors.white38),
-                    prefixIcon: const Icon(Icons.commute_rounded, color: Colors.white38),
+                    labelStyle: TextStyle(color: context.textColor30),
+                    prefixIcon: Icon(Icons.commute_rounded, color: context.textColor30),
                     filled: true,
-                    fillColor: const Color(0xFF1E293B),
+                    fillColor: Theme.of(context).cardColor,
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: const BorderSide(color: Colors.transparent),
@@ -253,14 +257,14 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
                 // Rate Input
                 TextFormField(
                   controller: _rateController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: context.textColor),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
                     labelText: 'Rate (Rs/Km)',
-                    labelStyle: const TextStyle(color: Colors.white38),
-                    prefixIcon: const Icon(Icons.currency_rupee_rounded, color: Colors.white38),
+                    labelStyle: TextStyle(color: context.textColor30),
+                    prefixIcon: Icon(Icons.currency_rupee_rounded, color: context.textColor30),
                     filled: true,
-                    fillColor: const Color(0xFF1E293B),
+                    fillColor: Theme.of(context).cardColor,
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: const BorderSide(color: Colors.transparent),
@@ -283,10 +287,10 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
                 const SizedBox(height: 24),
 
                 // Select Vehicle Photo Pairing
-                const Text(
+                Text(
                   'VEHICLE PHOTO THEME (MATCHED INSIDE/OUTSIDE)',
                   style: TextStyle(
-                    color: Colors.white30,
+                    color: context.textColor30,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.0,
@@ -312,10 +316,10 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
                           width: 140,
                           margin: const EdgeInsets.only(right: 12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1E293B),
+                            color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: isSelected ? const Color(0xFF10B981) : const Color(0xFF2E3B4E),
+                              color: isSelected ? const Color(0xFF10B981) : (context.isDarkMode ? const Color(0xFF2E3B4E) : const Color(0xFFE2E8F0)),
                               width: 2,
                             ),
                           ),
