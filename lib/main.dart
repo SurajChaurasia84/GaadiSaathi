@@ -33,9 +33,7 @@ class MyApp extends StatelessWidget {
           primary: Color(0xFF536DFE),
           secondary: Color(0xFF10B981),
           surface: Colors.white,
-          background: const Color(0xFFF8FAFC),
           error: Color(0xFFEF4444),
-          onBackground: Color(0xFF0F172A),
           onSurface: Color(0xFF0F172A),
         ),
         // Apply premium Google Font styling globally
@@ -67,9 +65,7 @@ class MyApp extends StatelessWidget {
           primary: Color(0xFF536DFE),
           secondary: Color(0xFF10B981),
           surface: Color(0xFF1E293B),
-          background: const Color(0xFF0B0F19),
           error: Color(0xFFEF4444),
-          onBackground: Colors.white,
           onSurface: Colors.white,
         ),
         // Apply premium Google Font styling globally
