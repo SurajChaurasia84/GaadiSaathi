@@ -375,4 +375,26 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  // Theme state settings
+  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode get themeMode => _themeMode;
+
+  void setThemeMode(ThemeMode mode) {
+    _themeMode = mode;
+    notifyListeners();
+  }
 }
+
+extension ThemeHelper on BuildContext {
+  bool get isDarkMode {
+    final theme = Theme.of(this);
+    return theme.brightness == Brightness.dark;
+  }
+
+  Color get textColor => isDarkMode ? Colors.white : const Color(0xFF0F172A);
+  Color get textColor54 => isDarkMode ? Colors.white54 : const Color(0xFF475569);
+  Color get textColor30 => isDarkMode ? Colors.white30 : const Color(0xFF94A3B8);
+  Color get textColor70 => isDarkMode ? Colors.white70 : const Color(0xFF334155);
+}
+
