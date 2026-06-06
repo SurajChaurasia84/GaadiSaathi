@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../widgets/theme_selector.dart';
-import 'owner/owner_register_screen.dart';
-import 'owner/owner_dashboard_screen.dart';
 import 'customer/customer_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -22,16 +20,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    final appState = Provider.of<AppState>(context, listen: false);
-
-    // Prepopulate demo credentials based on selected role
-    if (appState.currentUserRole == 'Owner') {
-      _nameController = TextEditingController(text: 'Suresh Kumar');
-      _emailController = TextEditingController(text: 'suresh.owner@gmail.com');
-    } else {
-      _nameController = TextEditingController(text: 'Rohit Sharma');
-      _emailController = TextEditingController(text: 'rohit.customer@gmail.com');
-    }
+    _nameController = TextEditingController(text: 'Rohit Sharma');
+    _emailController = TextEditingController(text: 'rohit.sharma@gmail.com');
   }
 
   @override
@@ -63,58 +53,31 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = false;
     });
 
-    // Route to appropriate screen based on role
-    if (appState.currentUserRole == 'Owner') {
-      if (appState.ownerVehicle != null) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const OwnerDashboardScreen()),
-          (route) => false,
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const OwnerRegisterScreen()),
-        );
-      }
-    }
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
+      (route) => false,
+    );
   }
 
   void _handleGuestLogin() {
     final appState = Provider.of<AppState>(context, listen: false);
-    final isOwner = appState.currentUserRole == 'Owner';
 
     appState.loginSimulated(
-      isOwner ? 'guest.owner@gmail.com' : 'guest.customer@gmail.com',
-      isOwner ? 'Guest Owner' : 'Guest Customer',
+      'guest.customer@gmail.com',
+      'Guest Customer',
     );
 
-    if (isOwner) {
-      if (appState.ownerVehicle != null) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const OwnerDashboardScreen()),
-          (route) => false,
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const OwnerRegisterScreen()),
-        );
-      }
-    } else {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
-        (route) => false,
-      );
-    }
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
+      (route) => false,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    final isOwner = appState.currentUserRole == 'Owner';
     final isDark = context.isDarkMode;
 
     return Scaffold(
@@ -122,10 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: context.textColor),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false, // No back button on landing screen
         actions: [
           buildThemeSelector(context, appState),
           const SizedBox(width: 8),
@@ -150,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withOpacity(0.1),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -179,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
-                    'Sign in to your account as ${isOwner ? "Owner" : "Customer"}',
+                    'Sign in to list & book vehicles instantly',
                     style: TextStyle(
                       color: context.textColor54,
                       fontSize: 14,
@@ -203,7 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(color: isOwner ? const Color(0xFF10B981) : const Color(0xFF536DFE)),
+                      borderSide: const BorderSide(color: Color(0xFF536DFE)),
                     ),
                     errorBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -239,7 +199,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(color: isOwner ? const Color(0xFF10B981) : const Color(0xFF536DFE)),
+                      borderSide: const BorderSide(color: Color(0xFF536DFE)),
                     ),
                     errorBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -265,7 +225,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : _handleGoogleLogin,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isOwner ? const Color(0xFF10B981) : const Color(0xFF536DFE),
+                    backgroundColor: const Color(0xFF536DFE),
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: isDark ? Colors.white12 : Colors.black12,
                     shape: RoundedRectangleBorder(
@@ -290,7 +250,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
                               height: 18,
                               width: 18,
-                              color: Colors.white, // simplified layout icon
+                              color: Colors.white,
                             ),
                             const SizedBox(width: 12),
                             const Text(
@@ -307,8 +267,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 OutlinedButton(
                   onPressed: _isLoading ? null : _handleGuestLogin,
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(
-                      color: isOwner ? const Color(0xFF10B981) : const Color(0xFF536DFE),
+                    side: const BorderSide(
+                      color: Color(0xFF536DFE),
                       width: 1.5,
                     ),
                     shape: RoundedRectangleBorder(
@@ -316,20 +276,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         Icons.person_outline_rounded,
-                        color: isOwner ? const Color(0xFF10B981) : const Color(0xFF536DFE),
+                        color: Color(0xFF536DFE),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       Text(
                         'Continue as Guest',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: isOwner ? const Color(0xFF10B981) : const Color(0xFF536DFE),
+                          color: Color(0xFF536DFE),
                         ),
                       ),
                     ],
