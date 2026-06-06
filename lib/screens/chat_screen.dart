@@ -328,7 +328,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         appState.updateBookingStatus(widget.threadId, msgIndex, BookingStatus.confirmed);
                         appState.sendChatMessage(
                           widget.threadId,
-                          '🎉 Confirmed! I have booked the ride at ₹${rate.toStringAsFixed(1)}/Km.',
+                          '🎉 Confirmed! I have booked the vehicle at ₹${rate.toStringAsFixed(1)}/Km.',
                         );
                       },
                       style: ElevatedButton.styleFrom(
@@ -336,7 +336,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      child: const Text('Confirm Ride', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                      child: const Text('Confirm Booking', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -434,7 +434,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 label: 'Confirm Booking Request',
                 icon: Icons.directions_rounded,
                 onTap: () {
-                  _msgController.text = 'I want to confirm a ride. Please propose the rate.';
+                  _msgController.text = 'I want to book the vehicle. Please propose the rate.';
                   _sendMessage();
                 },
               ),
@@ -443,7 +443,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 label: 'Are you available?',
                 icon: Icons.check_rounded,
                 onTap: () {
-                  _msgController.text = 'Hi! Are you available for a ride right now?';
+                  _msgController.text = 'Hi! Is the vehicle available for booking right now?';
                   _sendMessage();
                 },
               ),
