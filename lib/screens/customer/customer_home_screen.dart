@@ -4,6 +4,7 @@ import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
 import '../../widgets/custom_map.dart';
 import '../../widgets/vehicle_card.dart';
+import '../../widgets/theme_selector.dart';
 import '../chat_screen.dart';
 import '../role_selection_screen.dart';
 import 'vehicle_detail_screen.dart';
@@ -39,13 +40,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     final appState = Provider.of<AppState>(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0F19),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
           _currentIndex == 0 ? 'GaadiSaathi' : 'My Inbox',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold),
         ),
         actions: [
           // Quick Switch Simulator Mode helper
@@ -64,8 +65,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               style: TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
+          buildThemeSelector(context, appState),
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.white54),
+            icon: Icon(Icons.logout_rounded, color: context.textColor54),
             onPressed: () {
               appState.logout();
               Navigator.pushAndRemoveUntil(
@@ -85,9 +87,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             _currentIndex = index;
           });
         },
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: Theme.of(context).cardColor,
         selectedItemColor: const Color(0xFF536DFE),
-        unselectedItemColor: Colors.white30,
+        unselectedItemColor: context.textColor30,
         showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
         items: const [
@@ -118,14 +120,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             onChanged: (val) {
               appState.setSearchQuery(val);
             },
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: context.textColor),
             decoration: InputDecoration(
               hintText: 'Search model, owner name...',
-              hintStyle: const TextStyle(color: Colors.white38),
-              prefixIcon: const Icon(Icons.search_rounded, color: Colors.white38),
+              hintStyle: TextStyle(color: context.textColor30),
+              prefixIcon: Icon(Icons.search_rounded, color: context.textColor30),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.white38),
+                      icon: Icon(Icons.clear, color: context.textColor30),
                       onPressed: () {
                         _searchController.clear();
                         appState.setSearchQuery('');
@@ -133,7 +135,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     )
                   : null,
               filled: true,
-              fillColor: const Color(0xFF1E293B),
+              fillColor: Theme.of(context).cardColor,
               contentPadding: const EdgeInsets.symmetric(vertical: 0),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -156,23 +158,23 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             Container(
               height: 260,
               decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Center(
+              child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(color: Color(0xFF536DFE)),
-                    SizedBox(height: 16),
+                    const CircularProgressIndicator(color: Color(0xFF536DFE)),
+                    const SizedBox(height: 16),
                     Text(
                       'Acquiring GPS Satellite Signal...',
-                      style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: context.textColor70, fontSize: 13, fontWeight: FontWeight.bold),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'Automatically loading 3 Km radius grid',
-                      style: TextStyle(color: Colors.white38, fontSize: 11),
+                      style: TextStyle(color: context.textColor30, fontSize: 11),
                     ),
                   ],
                 ),
@@ -196,10 +198,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'VEHICLES WITHIN RANGE',
                 style: TextStyle(
-                  color: Colors.white30,
+                  color: context.textColor30,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
@@ -247,9 +249,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x0AFFFFFF)),
+        border: Border.all(color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x0F000000)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -261,13 +263,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 children: [
                   Icon(
                     appState.isLocationOn ? Icons.location_on_rounded : Icons.location_searching_rounded,
-                    color: appState.isLocationOn ? const Color(0xFFEF4444) : Colors.white30,
+                    color: appState.isLocationOn ? const Color(0xFFEF4444) : context.textColor30,
                     size: 18,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     appState.isLocationOn ? 'GPS Location: Active (Delhi)' : 'GPS Location: Locating...',
-                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: context.textColor, fontSize: 13, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -288,7 +290,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
               activeTrackColor: const Color(0xFF536DFE),
-              inactiveTrackColor: const Color(0xFF2E3B4E),
+              inactiveTrackColor: context.isDarkMode ? const Color(0xFF2E3B4E) : const Color(0xFFE2E8F0),
               thumbColor: const Color(0xFF536DFE),
               overlayColor: const Color(0x22536DFE),
               trackHeight: 4,
@@ -337,17 +339,17 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF536DFE) : const Color(0xFF1E293B),
+          color: isSelected ? const Color(0xFF536DFE) : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? Colors.transparent : const Color(0xFF2E3B4E),
+            color: isSelected ? Colors.transparent : (context.isDarkMode ? const Color(0xFF2E3B4E) : const Color(0xFFE2E8F0)),
             width: 1.0,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white70,
+            color: isSelected ? Colors.white : context.textColor70,
             fontSize: 12,
             fontWeight: FontWeight.bold,
           ),
@@ -360,22 +362,22 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         children: [
-          const Icon(Icons.car_crash_rounded, color: Colors.white24, size: 48),
+          Icon(Icons.car_crash_rounded, color: context.textColor30, size: 48),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No Vehicles in this Range',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            style: TextStyle(color: context.textColor, fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             'There are no active vehicles registered within ${appState.searchRadiusKm.toStringAsFixed(1)} Km. Try widening the search radius.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white38, fontSize: 12, height: 1.4),
+            style: TextStyle(color: context.textColor54, fontSize: 12, height: 1.4),
           ),
         ],
       ),
@@ -386,20 +388,20 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     final chats = appState.chatThreads.where((t) => t.customerGmail == appState.currentGmail).toList();
 
     if (chats.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat_bubble_outline_rounded, color: Colors.white24, size: 48),
-            SizedBox(height: 16),
+            Icon(Icons.chat_bubble_outline_rounded, color: context.textColor30, size: 48),
+            const SizedBox(height: 16),
             Text(
               'No active booking conversations',
-              style: TextStyle(color: Colors.white30, fontSize: 15, fontWeight: FontWeight.bold),
+              style: TextStyle(color: context.textColor30, fontSize: 15, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
               'Select a vehicle from explorer and click Chat to Book.',
-              style: TextStyle(color: Colors.white24, fontSize: 12),
+              style: TextStyle(color: context.textColor30.withOpacity(0.8), fontSize: 12),
             ),
           ],
         ),
@@ -414,9 +416,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0x0AFFFFFF)),
+            border: Border.all(color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000)),
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -429,7 +431,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             ),
             title: Text(
               chat.ownerName,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+              style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 14),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -444,11 +446,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   chat.lastMessageText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+                  style: TextStyle(color: context.textColor54, fontSize: 12),
                 ),
               ],
             ),
-            trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white38, size: 14),
+            trailing: Icon(Icons.arrow_forward_ios_rounded, color: context.textColor30, size: 14),
             onTap: () {
               Navigator.push(
                 context,
@@ -466,7 +468,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   void _showVehicleQuickView(Vehicle vehicle) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1E293B),
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -496,12 +498,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       children: [
                         Text(
                           vehicle.model,
-                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: context.textColor, fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'Owner: ${vehicle.ownerName}',
-                          style: const TextStyle(color: Colors.white54, fontSize: 12),
+                          style: TextStyle(color: context.textColor54, fontSize: 12),
                         ),
                         const SizedBox(height: 6),
                         Text(
@@ -526,11 +528,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         );
                       },
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFF2E3B4E)),
+                        side: BorderSide(color: context.isDarkMode ? const Color(0xFF2E3B4E) : const Color(0xFFE2E8F0)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      child: const Text('View Full Info', style: TextStyle(color: Colors.white)),
+                      child: Text('View Full Info', style: TextStyle(color: context.textColor)),
                     ),
                   ),
                   const SizedBox(width: 12),

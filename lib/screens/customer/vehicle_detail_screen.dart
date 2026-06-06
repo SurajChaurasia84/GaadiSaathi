@@ -39,14 +39,14 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0F19),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           // Elegant Header Image Section with Switchable Inside/Outside photos
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
-            backgroundColor: const Color(0xFF0B0F19),
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             leading: CircleAvatar(
               backgroundColor: const Color(0x66000000),
               child: IconButton(
@@ -70,7 +70,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                         colors: [
-                          const Color(0xFF0B0F19),
+                          Theme.of(context).scaffoldBackgroundColor,
                           Colors.transparent,
                         ],
                       ),
@@ -143,8 +143,8 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                           const SizedBox(width: 4),
                           Text(
                             '${distance.toStringAsFixed(1)} Km away',
-                            style: const TextStyle(
-                              color: Colors.white70,
+                            style: TextStyle(
+                              color: context.textColor70,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
@@ -158,8 +158,8 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   // Model title
                   Text(
                     widget.vehicle.model,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: context.textColor,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
@@ -170,7 +170,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
@@ -189,8 +189,8 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                             children: [
                               Text(
                                 widget.vehicle.ownerName,
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: context.textColor,
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -199,7 +199,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                               Text(
                                 widget.vehicle.ownerGmail,
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.4),
+                                  color: context.textColor54,
                                   fontSize: 12,
                                 ),
                               ),
@@ -215,30 +215,30 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(color: const Color(0xFF10B981).withOpacity(0.2)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Column(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'VERIFIED VEHICLE RATE',
                               style: TextStyle(
-                                color: Colors.white30,
+                                color: context.textColor30,
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1.0,
                               ),
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Text(
                               'Set directly by Owner',
                               style: TextStyle(
-                                color: Colors.white54,
+                                color: context.textColor54,
                                 fontSize: 12,
                               ),
                             ),
@@ -258,16 +258,16 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                             ),
                             Text(
                               widget.vehicle.ratePerKm.toStringAsFixed(1),
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: context.textColor,
                                 fontSize: 28,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-                            const Text(
+                            Text(
                               '/Km',
                               style: TextStyle(
-                                color: Colors.white54,
+                                color: context.textColor54,
                                 fontSize: 13,
                               ),
                             ),
