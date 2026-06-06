@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'screens/login_screen.dart';
 import 'providers/app_state.dart';
-import 'screens/role_selection_screen.dart';
 
 void main() {
   runApp(
@@ -89,7 +89,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const RoleSelectionScreen(),
+      home: const LoginScreen(),
     );
   }
 }
