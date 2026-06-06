@@ -189,13 +189,11 @@ class AppState extends ChangeNotifier {
     currentGmail = gmail;
     currentUserName = name;
 
-    // Check if there is an existing vehicle for this owner
-    if (currentUserRole == 'Owner') {
-      try {
-        ownerVehicle = _allVehicles.firstWhere((v) => v.ownerGmail == gmail);
-      } catch (_) {
-        ownerVehicle = null;
-      }
+    // Check if there is an existing vehicle for this user
+    try {
+      ownerVehicle = _allVehicles.firstWhere((v) => v.ownerGmail == gmail);
+    } catch (_) {
+      ownerVehicle = null;
     }
     notifyListeners();
   }
@@ -337,7 +335,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
 
       // Simple simulator replies after 1.5 seconds if sent by customer, to make the chat feel responsive
-      if (currentUserRole == 'Customer' && !isBookingProposal) {
+      if (currentGmail != chatThreads[index].ownerGmail && !isBookingProposal) {
         _simulateOwnerResponse(threadId, text);
       }
     }
