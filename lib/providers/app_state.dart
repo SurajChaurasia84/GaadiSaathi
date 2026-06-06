@@ -348,7 +348,7 @@ class AppState extends ChangeNotifier {
         response = 'Yes, my service is active and ready right now!';
       } else if (textLower.contains('discount') || textLower.contains('rate')) {
         final double currentRate = ownerVehicle?.ratePerKm ?? 12.0;
-        response = 'The rate is fixed at ₹${currentRate.toStringAsFixed(1)}/Km as per the requirements, but I can offer smooth riding!';
+        response = 'The rate is fixed at ₹${currentRate.toStringAsFixed(1)}/Km as per the requirements, but I can offer smooth transport!';
       }
 
       final updatedMessages = List<ChatMessage>.from(chatThreads[index].messages)
