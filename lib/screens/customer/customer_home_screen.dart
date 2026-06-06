@@ -1,10 +1,11 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
 import '../../widgets/vehicle_card.dart';
 import '../../widgets/theme_selector.dart';
-import '../role_selection_screen.dart';
+import '../login_screen.dart';
 import 'inbox_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
@@ -18,15 +19,18 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   int _currentIndex = 0;
   final TextEditingController _searchController = TextEditingController();
 
-  // Active posted requests list
-  final List<Map<String, String>> _postedRequests = [];
+  // Active registered vehicles list (for current session/user)
+  final List<Vehicle> _addedVehicles = [];
 
-  // Form keys and controllers for custom ride request
+  // Form keys and controllers for custom vehicle addition
   final _addFormKey = GlobalKey<FormState>();
-  final _pickupController = TextEditingController();
-  final _dropController = TextEditingController();
-  double _customRateLimit = 14.0;
-  VehicleType _requestedVehicleType = VehicleType.car;
+  final _ownerNameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _modelNameController = TextEditingController();
+  final _rateController = TextEditingController();
+  VehicleType _selectedVehicleType = VehicleType.car;
+  bool _isAvailable = true;
 
   @override
   void initState() {
@@ -40,9 +44,34 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   @override
   void dispose() {
     _searchController.dispose();
-    _pickupController.dispose();
-    _dropController.dispose();
+    _ownerNameController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    _modelNameController.dispose();
+    _rateController.dispose();
     super.dispose();
+  }
+
+  String _getDefaultOutsidePhoto(VehicleType type) {
+    switch (type) {
+      case VehicleType.car:
+        return 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?q=80&w=600&auto=format&fit=crop';
+      case VehicleType.eRickshaw:
+        return 'https://images.unsplash.com/photo-1626125345510-4603468eedfb?q=80&w=600&auto=format&fit=crop';
+      case VehicleType.loading:
+        return 'https://images.unsplash.com/photo-1516576885230-101c05528b3f?q=80&w=600&auto=format&fit=crop';
+    }
+  }
+
+  String _getDefaultInsidePhoto(VehicleType type) {
+    switch (type) {
+      case VehicleType.car:
+        return 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?q=80&w=600&auto=format&fit=crop';
+      case VehicleType.eRickshaw:
+        return 'https://images.unsplash.com/photo-1517524206127-48bbd363f3d7?q=80&w=600&auto=format&fit=crop';
+      case VehicleType.loading:
+        return 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?q=80&w=600&auto=format&fit=crop';
+    }
   }
 
   @override
@@ -58,7 +87,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           _currentIndex == 0
               ? 'GaadiSaathi'
               : _currentIndex == 1
-                  ? 'Request a Vehicle'
+                  ? 'Add Vehicle'
                   : 'My Profile',
           style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold),
         ),
@@ -68,10 +97,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 _buildChatAction(context, appState),
                 const SizedBox(width: 8),
               ]
-            : [
-                buildThemeSelector(context, appState),
-                const SizedBox(width: 8),
-              ],
+            : null,
       ),
       body: _currentIndex == 0
           ? _buildBrowseTab(appState)
@@ -287,78 +313,99 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000),
-              ),
-            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
             child: Form(
               key: _addFormKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Post Rental Requirement',
+                    'Add your vehicle details to list it on our platform for get early bookings.',
                     style: TextStyle(
-                      color: context.textColor,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      color: context.textColor54,
+                      fontSize: 12,
+                      height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Post your pickup location and rental needs. Registered owners nearby will view your request and contact you directly.',
-                    style: TextStyle(color: context.textColor54, fontSize: 12, height: 1.3),
-                  ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+                  // Owner Name Input
                   TextFormField(
-                    controller: _pickupController,
+                    controller: _ownerNameController,
                     style: TextStyle(color: context.textColor, fontSize: 14),
                     decoration: InputDecoration(
-                      labelText: 'Pickup Location',
+                      labelText: 'Owner Name',
                       labelStyle: TextStyle(color: context.textColor30),
-                      prefixIcon: Icon(Icons.my_location_rounded, color: context.textColor30, size: 18),
+                      prefixIcon: Icon(Icons.person_outline_rounded, color: context.textColor30, size: 18),
                       filled: true,
-                      fillColor: Theme.of(context).scaffoldBackgroundColor,
+                      fillColor: Theme.of(context).cardColor,
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: Colors.transparent),
+                        borderSide: BorderSide(color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000), width: 1.5),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide: const BorderSide(color: Color(0xFF536DFE)),
                       ),
                     ),
-                    validator: (value) => value == null || value.trim().isEmpty ? 'Enter pickup point' : null,
+                    validator: (value) => value == null || value.trim().isEmpty ? 'Enter owner name' : null,
                   ),
                   const SizedBox(height: 12),
+
+                  // Phone Number Input
                   TextFormField(
-                    controller: _dropController,
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
                     style: TextStyle(color: context.textColor, fontSize: 14),
                     decoration: InputDecoration(
-                      labelText: 'Drop Destination',
+                      labelText: 'Phone Number',
                       labelStyle: TextStyle(color: context.textColor30),
-                      prefixIcon: Icon(Icons.location_on_rounded, color: context.textColor30, size: 18),
+                      prefixIcon: Icon(Icons.phone_rounded, color: context.textColor30, size: 18),
                       filled: true,
-                      fillColor: Theme.of(context).scaffoldBackgroundColor,
+                      fillColor: Theme.of(context).cardColor,
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: Colors.transparent),
+                        borderSide: BorderSide(color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000), width: 1.5),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide: const BorderSide(color: Color(0xFF536DFE)),
                       ),
                     ),
-                    validator: (value) => value == null || value.trim().isEmpty ? 'Enter destination' : null,
+                    validator: (value) => value == null || value.trim().isEmpty ? 'Enter phone number' : null,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Address Input
+                  TextFormField(
+                    controller: _addressController,
+                    maxLines: 2,
+                    style: TextStyle(color: context.textColor, fontSize: 14),
+                    decoration: InputDecoration(
+                      labelText: 'Address',
+                      labelStyle: TextStyle(color: context.textColor30),
+                      prefixIcon: Padding(
+                        padding: const EdgeInsets.only(bottom: 24.0),
+                        child: Icon(Icons.location_on_rounded, color: context.textColor30, size: 18),
+                      ),
+                      filled: true,
+                      fillColor: Theme.of(context).cardColor,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000), width: 1.5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Color(0xFF536DFE)),
+                      ),
+                    ),
+                    validator: (value) => value == null || value.trim().isEmpty ? 'Enter address' : null,
                   ),
                   const SizedBox(height: 20),
+
+                  // Vehicle Type Option (give option below)
                   Text(
-                    'VEHICLE TYPE REQUESTED',
+                    'VEHICLE TYPE',
                     style: TextStyle(
                       color: context.textColor30,
                       fontSize: 10,
@@ -369,12 +416,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   const SizedBox(height: 8),
                   Row(
                     children: VehicleType.values.map((type) {
-                      final isSelected = _requestedVehicleType == type;
+                      final isSelected = _selectedVehicleType == type;
                       return Expanded(
                         child: GestureDetector(
                           onTap: () {
                             setState(() {
-                              _requestedVehicleType = type;
+                              _selectedVehicleType = type;
                             });
                           },
                           child: Container(
@@ -404,50 +451,150 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       );
                     }).toList(),
                   ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Target Budget Rate Limit:',
-                        style: TextStyle(color: context.textColor, fontSize: 13, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 12),
+
+                  // Model Name Input
+                  TextFormField(
+                    controller: _modelNameController,
+                    style: TextStyle(color: context.textColor, fontSize: 14),
+                    decoration: InputDecoration(
+                      labelText: 'Vehicle Model Name',
+                      labelStyle: TextStyle(color: context.textColor30),
+                      prefixIcon: Icon(Icons.commute_rounded, color: context.textColor30, size: 18),
+                      filled: true,
+                      fillColor: Theme.of(context).cardColor,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000), width: 1.5),
                       ),
-                      Text(
-                        '₹${_customRateLimit.toStringAsFixed(1)} / Km',
-                        style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.w900, fontSize: 14),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Color(0xFF536DFE)),
                       ),
-                    ],
+                    ),
+                    validator: (value) => value == null || value.trim().isEmpty ? 'Enter model name' : null,
                   ),
-                  Slider(
-                    value: _customRateLimit,
-                    min: 5.0,
-                    max: 35.0,
-                    divisions: 30,
-                    activeColor: const Color(0xFF536DFE),
-                    onChanged: (val) {
-                      setState(() {
-                        _customRateLimit = val;
-                      });
+                  const SizedBox(height: 12),
+
+                  // Charge per Km Input
+                  TextFormField(
+                    controller: _rateController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    style: TextStyle(color: context.textColor, fontSize: 14),
+                    decoration: InputDecoration(
+                      labelText: 'Charge per Km (₹)',
+                      labelStyle: TextStyle(color: context.textColor30),
+                      prefixIcon: Icon(Icons.currency_rupee_rounded, color: context.textColor30, size: 18),
+                      filled: true,
+                      fillColor: Theme.of(context).cardColor,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000), width: 1.5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Color(0xFF536DFE)),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) return 'Enter rate per Km';
+                      if (double.tryParse(value) == null) return 'Enter a valid number';
+                      return null;
                     },
                   ),
                   const SizedBox(height: 12),
+
+                  // Availability Toggle
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Availability Status',
+                                style: TextStyle(
+                                  color: context.textColor,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _isAvailable ? 'Service is ON (Available for bookings)' : 'Service is OFF (Unavailable)',
+                                style: TextStyle(
+                                  color: _isAvailable ? const Color(0xFF10B981) : context.textColor30,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch.adaptive(
+                          value: _isAvailable,
+                          activeColor: const Color(0xFF10B981),
+                          activeTrackColor: const Color(0xFF10B981).withOpacity(0.3),
+                          onChanged: (value) {
+                            setState(() {
+                              _isAvailable = value;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 24),
+
+                  // Submit Button
                   ElevatedButton(
                     onPressed: () {
                       if (!_addFormKey.currentState!.validate()) return;
+                      final appState = Provider.of<AppState>(context, listen: false);
+
+                      // Create and add new vehicle
+                      final newVehicle = Vehicle(
+                        id: 'custom_${DateTime.now().millisecondsSinceEpoch}',
+                        ownerName: _ownerNameController.text.trim(),
+                        ownerGmail: appState.currentGmail ?? 'guest.customer@gmail.com',
+                        type: _selectedVehicleType,
+                        model: _modelNameController.text.trim(),
+                        insidePhotoUrl: _getDefaultInsidePhoto(_selectedVehicleType),
+                        outsidePhotoUrl: _getDefaultOutsidePhoto(_selectedVehicleType),
+                        ratePerKm: double.tryParse(_rateController.text.trim()) ?? 0.0,
+                        isServiceOn: _isAvailable,
+                        latitude: appState.customerLatitude + (Random().nextDouble() - 0.5) * 0.02,
+                        longitude: appState.customerLongitude + (Random().nextDouble() - 0.5) * 0.02,
+                        phoneNumber: _phoneController.text.trim(),
+                        address: _addressController.text.trim(),
+                      );
+
+                      appState.addCustomVehicle(newVehicle);
+
                       setState(() {
-                        _postedRequests.insert(0, {
-                          'pickup': _pickupController.text.trim(),
-                          'drop': _dropController.text.trim(),
-                          'type': _requestedVehicleType.displayName,
-                          'rate': _customRateLimit.toStringAsFixed(1),
-                          'date': 'Just Now',
-                        });
-                        _pickupController.clear();
-                        _dropController.clear();
+                        _addedVehicles.insert(0, newVehicle);
+                        _ownerNameController.clear();
+                        _phoneController.clear();
+                        _addressController.clear();
+                        _modelNameController.clear();
+                        _rateController.clear();
+                        _isAvailable = true;
                       });
+
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Vehicle Requirement Posted Successfully!'),
+                          content: Text('Vehicle Registered & Listed Successfully!'),
                           backgroundColor: Color(0xFF10B981),
                         ),
                       );
@@ -457,7 +604,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('Post Vehicle Requirement', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text('Add Vehicle', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -465,7 +612,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            'MY ACTIVE POSTED REQUIREMENTS',
+            'MY REGISTERED VEHICLES',
             style: TextStyle(
               color: context.textColor30,
               fontSize: 11,
@@ -474,26 +621,21 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          if (_postedRequests.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000)),
-              ),
+          if (_addedVehicles.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20.0),
               child: Center(
                 child: Column(
                   children: [
                     Icon(Icons.commute_rounded, color: context.textColor30, size: 36),
                     const SizedBox(height: 12),
                     Text(
-                      'No Active Custom Requests',
+                      'No Vehicles Added Yet',
                       style: TextStyle(color: context.textColor30, fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Requirements you post will show here.',
+                      'Vehicles you register will show here.',
                       style: TextStyle(color: context.textColor30.withOpacity(0.8), fontSize: 11),
                     ),
                   ],
@@ -504,92 +646,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: _postedRequests.length,
+              itemCount: _addedVehicles.length,
               itemBuilder: (context, idx) {
-                final req = _postedRequests[idx];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF536DFE).withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              req['type']!,
-                              style: const TextStyle(color: Color(0xFF536DFE), fontSize: 10, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'SEARCHING OWNERS',
-                              style: TextStyle(color: Color(0xFF10B981), fontSize: 9, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          const Icon(Icons.circle, color: Colors.blue, size: 8),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'From: ${req['pickup']}',
-                              style: TextStyle(color: context.textColor, fontSize: 13, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(Icons.circle, color: Colors.orange, size: 8),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'To: ${req['drop']}',
-                              style: TextStyle(color: context.textColor, fontSize: 13, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Divider(height: 1),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Budget Rate:',
-                            style: TextStyle(color: context.textColor54, fontSize: 11),
-                          ),
-                          Text(
-                            '₹${req['rate']} / Km',
-                            style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
+                final vehicle = _addedVehicles[idx];
+                return VehicleCard(vehicle: vehicle);
               },
             ),
           const SizedBox(height: 20),
@@ -670,7 +730,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               children: [
                 _buildStatItem('Rentals Completed', '12'),
                 _buildStatItem('Total Spent', '₹840'),
-                _buildStatItem('Active Posts', '${_postedRequests.length}'),
+                _buildStatItem('My Vehicles', '${_addedVehicles.length}'),
               ],
             ),
           ),
@@ -705,20 +765,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 ),
                 const Divider(height: 1),
                 ListTile(
-                  leading: const Icon(Icons.swap_horiz_rounded, color: Color(0xFF10B981)),
-                  title: Text('Switch Mode', style: TextStyle(color: context.textColor, fontSize: 14)),
-                  subtitle: Text('Switch role to Owner Console', style: TextStyle(color: context.textColor54, fontSize: 12)),
-                  onTap: () {
-                    appState.setRole('Owner');
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const RoleSelectionScreen()),
-                      (route) => false,
-                    );
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
                   leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
                   title: Text('Log Out', style: TextStyle(color: context.textColor, fontSize: 14)),
                   subtitle: Text('Log out of this guest session', style: TextStyle(color: context.textColor54, fontSize: 12)),
@@ -726,7 +772,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     appState.logout();
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => const RoleSelectionScreen()),
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
                       (route) => false,
                     );
                   },
