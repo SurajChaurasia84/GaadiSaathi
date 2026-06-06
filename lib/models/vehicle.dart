@@ -29,6 +29,8 @@ class Vehicle {
   final bool isServiceOn;
   final double latitude;
   final double longitude;
+  final String? phoneNumber;
+  final String? address;
 
   Vehicle({
     required this.id,
@@ -42,6 +44,8 @@ class Vehicle {
     required this.isServiceOn,
     required this.latitude,
     required this.longitude,
+    this.phoneNumber,
+    this.address,
   });
 
   Vehicle copyWith({
@@ -56,6 +60,8 @@ class Vehicle {
     bool? isServiceOn,
     double? latitude,
     double? longitude,
+    String? phoneNumber,
+    String? address,
   }) {
     return Vehicle(
       id: id ?? this.id,
@@ -69,6 +75,8 @@ class Vehicle {
       isServiceOn: isServiceOn ?? this.isServiceOn,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      address: address ?? this.address,
     );
   }
 }
