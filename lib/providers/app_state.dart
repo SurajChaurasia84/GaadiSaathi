@@ -268,6 +268,11 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void addCustomVehicle(Vehicle vehicle) {
+    _allVehicles.add(vehicle);
+    notifyListeners();
+  }
+
   void toggleServiceStatus(bool isOn) {
     if (ownerVehicle != null) {
       ownerVehicle = ownerVehicle!.copyWith(isServiceOn: isOn);
