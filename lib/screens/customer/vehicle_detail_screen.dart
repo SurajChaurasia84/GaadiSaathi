@@ -292,7 +292,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                         SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Note: ₹0 Booking Charge. Pay only for travel.',
+                            'Note: ₹0 Booking Charge. Pay only for vehicle usage.',
                             style: TextStyle(
                               color: Color(0xFF10B981),
                               fontSize: 12,
@@ -332,7 +332,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                         Icon(Icons.chat_bubble_outline_rounded),
                         SizedBox(width: 10),
                         Text(
-                          'Chat to Book Ride',
+                          'Chat to Book Vehicle',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
