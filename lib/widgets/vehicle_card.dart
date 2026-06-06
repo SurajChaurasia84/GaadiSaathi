@@ -13,6 +13,7 @@ class VehicleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
     final distance = appState.getDistanceFromUser(vehicle.latitude, vehicle.longitude);
+    final isDark = context.isDarkMode;
 
     Color typeColor;
     IconData typeIcon;
@@ -34,12 +35,12 @@ class VehicleCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x11FFFFFF), width: 1),
+        border: Border.all(color: context.isDarkMode ? const Color(0x11FFFFFF) : const Color(0x0A000000), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           )
@@ -76,7 +77,7 @@ class VehicleCard extends StatelessWidget {
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                         colors: [
-                          const Color(0xFF1E293B).withOpacity(0.9),
+                          Theme.of(context).cardColor.withOpacity(0.9),
                           Colors.transparent,
                         ],
                       ),
@@ -149,8 +150,8 @@ class VehicleCard extends StatelessWidget {
                 children: [
                   Text(
                     vehicle.model,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: context.textColor,
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
                     ),
@@ -158,19 +159,19 @@ class VehicleCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.person, color: Colors.white54, size: 14),
+                      Icon(Icons.person, color: context.textColor54, size: 14),
                       const SizedBox(width: 4),
                       Text(
                         'Owner: ${vehicle.ownerName}',
-                        style: const TextStyle(
-                          color: Colors.white54,
+                        style: TextStyle(
+                          color: context.textColor54,
                           fontSize: 13,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  const Divider(color: Color(0x11FFFFFF), height: 1),
+                  Divider(color: context.isDarkMode ? const Color(0x11FFFFFF) : const Color(0x0A000000), height: 1),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -178,10 +179,10 @@ class VehicleCard extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'RENTAL RATE',
                             style: TextStyle(
-                              color: Colors.white30,
+                              color: context.textColor30,
                               fontSize: 9,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.0,
@@ -202,16 +203,16 @@ class VehicleCard extends StatelessWidget {
                               ),
                               Text(
                                 vehicle.ratePerKm.toStringAsFixed(1),
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: context.textColor,
                                   fontSize: 20,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
-                              const Text(
+                              Text(
                                 ' / Km',
                                 style: TextStyle(
-                                  color: Colors.white54,
+                                  color: context.textColor54,
                                   fontSize: 12,
                                 ),
                               ),
