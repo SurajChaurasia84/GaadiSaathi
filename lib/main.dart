@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'providers/app_state.dart';
@@ -42,6 +43,11 @@ class MyApp extends StatelessWidget {
           ThemeData.light().textTheme,
         ),
         appBarTheme: AppBarTheme(
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+          ),
           backgroundColor: Colors.transparent,
           elevation: 0,
           titleTextStyle: GoogleFonts.outfit(
@@ -71,6 +77,11 @@ class MyApp extends StatelessWidget {
           ThemeData.dark().textTheme,
         ),
         appBarTheme: AppBarTheme(
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.light,
+            statusBarBrightness: Brightness.dark,
+          ),
           backgroundColor: Colors.transparent,
           elevation: 0,
           titleTextStyle: GoogleFonts.outfit(
