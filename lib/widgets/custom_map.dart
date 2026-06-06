@@ -41,11 +41,14 @@ class _CustomMapState extends State<CustomMap> with SingleTickerProviderStateMix
       child: Container(
         height: 260,
         decoration: BoxDecoration(
-          color: const Color(0xDD0D1321),
-          border: Border.all(color: const Color(0x22536DFE), width: 1.5),
+          color: context.isDarkMode ? const Color(0xDD0D1321) : const Color(0xFFE2E8F0),
+          border: Border.all(
+            color: context.isDarkMode ? const Color(0x22536DFE) : const Color(0x66536DFE),
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0x33536DFE).withOpacity(0.08),
+              color: const Color(0x33536DFE).withOpacity(context.isDarkMode ? 0.08 : 0.04),
               blurRadius: 15,
               spreadRadius: 2,
             )
@@ -62,6 +65,7 @@ class _CustomMapState extends State<CustomMap> with SingleTickerProviderStateMix
                     painter: MapPainter(
                       radarSweepAngle: _radarController.value * 2 * pi,
                       maxRadiusKm: appState.searchRadiusKm,
+                      isDarkMode: context.isDarkMode,
                     ),
                   ),
                 ),
@@ -107,9 +111,9 @@ class _CustomMapState extends State<CustomMap> with SingleTickerProviderStateMix
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xAA1E293B),
+                      color: context.isDarkMode ? const Color(0xAA1E293B) : Colors.white.withOpacity(0.9),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0x33536DFE)),
+                      border: Border.all(color: context.isDarkMode ? const Color(0x33536DFE) : const Color(0xAA536DFE)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -118,8 +122,8 @@ class _CustomMapState extends State<CustomMap> with SingleTickerProviderStateMix
                         const SizedBox(width: 6),
                         Text(
                           'Radar: ${appState.searchRadiusKm.toStringAsFixed(1)} Km',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: context.textColor,
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                           ),
@@ -135,7 +139,7 @@ class _CustomMapState extends State<CustomMap> with SingleTickerProviderStateMix
                   child: Text(
                     '${vehicles.length} vehicle(s) nearby',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
+                      color: context.textColor54,
                       fontSize: 11,
                     ),
                   ),
@@ -152,19 +156,20 @@ class _CustomMapState extends State<CustomMap> with SingleTickerProviderStateMix
 class MapPainter extends CustomPainter {
   final double radarSweepAngle;
   final double maxRadiusKm;
+  final bool isDarkMode;
 
-  MapPainter({required this.radarSweepAngle, required this.maxRadiusKm});
+  MapPainter({required this.radarSweepAngle, required this.maxRadiusKm, required this.isDarkMode});
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final paintGrid = Paint()
-      ..color = const Color(0x15536DFE)
+      ..color = isDarkMode ? const Color(0x15536DFE) : const Color(0x25536DFE)
       ..strokeWidth = 1.0;
 
     // Draw concentric radar lines
     final paintRing = Paint()
-      ..color = const Color(0x22536DFE)
+      ..color = isDarkMode ? const Color(0x22536DFE) : const Color(0x44536DFE)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
@@ -205,7 +210,9 @@ class MapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant MapPainter oldDelegate) {
-    return oldDelegate.radarSweepAngle != radarSweepAngle || oldDelegate.maxRadiusKm != maxRadiusKm;
+    return oldDelegate.radarSweepAngle != radarSweepAngle || 
+           oldDelegate.maxRadiusKm != maxRadiusKm ||
+           oldDelegate.isDarkMode != isDarkMode;
   }
 }
 
@@ -312,7 +319,7 @@ class VehiclePin extends StatelessWidget {
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
+          color: context.isDarkMode ? const Color(0xFF0F172A) : Colors.white,
           shape: BoxShape.circle,
           border: Border.all(color: typeColor, width: 2.0),
           boxShadow: [
