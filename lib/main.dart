@@ -18,10 +18,41 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appState = Provider.of<AppState>(context);
+
     return MaterialApp(
       title: 'GaadiSaathi',
       debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.dark,
+      themeMode: appState.themeMode,
+      theme: ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        cardColor: Colors.white,
+        colorScheme: const ColorScheme.light(
+          primary: Color(0xFF536DFE),
+          secondary: Color(0xFF10B981),
+          surface: Colors.white,
+          background: const Color(0xFFF8FAFC),
+          error: Color(0xFFEF4444),
+          onBackground: Color(0xFF0F172A),
+          onSurface: Color(0xFF0F172A),
+        ),
+        // Apply premium Google Font styling globally
+        textTheme: GoogleFonts.outfitTextTheme(
+          ThemeData.light().textTheme,
+        ),
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          titleTextStyle: GoogleFonts.outfit(
+            color: const Color(0xFF0F172A),
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+          iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
+        ),
+        useMaterial3: true,
+      ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF0B0F19),
@@ -32,13 +63,15 @@ class MyApp extends StatelessWidget {
           surface: Color(0xFF1E293B),
           background: const Color(0xFF0B0F19),
           error: Color(0xFFEF4444),
+          onBackground: Colors.white,
+          onSurface: Colors.white,
         ),
         // Apply premium Google Font styling globally
         textTheme: GoogleFonts.outfitTextTheme(
           ThemeData.dark().textTheme,
         ),
         appBarTheme: AppBarTheme(
-          backgroundColor: const Color(0xFF0B0F19),
+          backgroundColor: Colors.transparent,
           elevation: 0,
           titleTextStyle: GoogleFonts.outfit(
             color: Colors.white,
