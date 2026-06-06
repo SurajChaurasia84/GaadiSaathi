@@ -63,9 +63,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (threadIndex < 0) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0B0F19),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(backgroundColor: Colors.transparent),
-        body: const Center(child: Text('Chat not found', style: TextStyle(color: Colors.white))),
+        body: Center(child: Text('Chat not found', style: TextStyle(color: context.textColor))),
       );
     }
 
@@ -78,12 +78,12 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0F19),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: Theme.of(context).cardColor,
         elevation: 2,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          icon: Icon(Icons.arrow_back_rounded, color: context.textColor),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
@@ -91,11 +91,11 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Text(
               chatPartnerName,
-              style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+              style: TextStyle(color: context.textColor, fontSize: 15, fontWeight: FontWeight.bold),
             ),
             Text(
               'Vehicle: ${thread.vehicleModel}',
-              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11),
+              style: TextStyle(color: context.textColor54, fontSize: 11),
             ),
           ],
         ),
@@ -105,7 +105,7 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             // Top warning/info banner: "₹0 Booking Fee!"
             Container(
-              color: const Color(0xFF1B2C24),
+              color: context.isDarkMode ? const Color(0xFF1B2C24) : const Color(0xFFE6F4EA),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -164,7 +164,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isMe ? const Color(0xFF536DFE) : const Color(0xFF1E293B),
+          color: isMe ? const Color(0xFF536DFE) : Theme.of(context).cardColor,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -177,7 +177,7 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Text(
               msg.text,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: TextStyle(color: isMe ? Colors.white : context.textColor, fontSize: 14),
             ),
             const SizedBox(height: 4),
             Align(
@@ -185,7 +185,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Text(
                 '${msg.timestamp.hour.toString().padLeft(2, '0')}:${msg.timestamp.minute.toString().padLeft(2, '0')}',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.4),
+                  color: isMe ? Colors.white.withOpacity(0.6) : context.textColor54,
                   fontSize: 9,
                 ),
               ),
@@ -227,7 +227,7 @@ class _ChatScreenState extends State<ChatScreen> {
       margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF131C30),
+        color: context.isDarkMode ? const Color(0xFF131C30) : const Color(0xFFEEF2F6),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0x33536DFE), width: 1.5),
         boxShadow: [
@@ -245,10 +245,10 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               const Icon(Icons.event_note_rounded, color: Color(0xFF536DFE), size: 20),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'BOOKING INVOICE PROPOSAL',
                 style: TextStyle(
-                  color: Colors.white70,
+                  color: context.textColor70,
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 0.5,
@@ -260,19 +260,19 @@ class _ChatScreenState extends State<ChatScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Calculated Rate:', style: TextStyle(color: Colors.white54, fontSize: 13)),
+              Text('Calculated Rate:', style: TextStyle(color: context.textColor54, fontSize: 13)),
               Text(
                 '₹${rate.toStringAsFixed(1)} / Km',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15),
+                style: TextStyle(color: context.textColor, fontWeight: FontWeight.w900, fontSize: 15),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Platform Booking Fee:', style: TextStyle(color: Colors.white54, fontSize: 13)),
-              Text(
+              Text('Platform Booking Fee:', style: TextStyle(color: context.textColor54, fontSize: 13)),
+              const Text(
                 '₹0.0 (Free)',
                 style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 14),
               ),
@@ -284,7 +284,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Booking Status:', style: TextStyle(color: Colors.white54, fontSize: 13)),
+              Text('Booking Status:', style: TextStyle(color: context.textColor54, fontSize: 13)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -342,10 +342,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               )
             ] else ...[
-              const Center(
+              Center(
                 child: Text(
                   'Waiting for Customer Response...',
-                  style: TextStyle(color: Colors.white30, fontSize: 12, fontStyle: FontStyle.italic),
+                  style: TextStyle(color: context.textColor30, fontSize: 12, fontStyle: FontStyle.italic),
                 ),
               ),
             ]
@@ -456,9 +456,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildQuickActionChip({required String label, required IconData icon, required VoidCallback onTap}) {
     return ActionChip(
-      avatar: Icon(icon, size: 13, color: Colors.white70),
-      label: Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-      backgroundColor: const Color(0xFF1E293B),
+      avatar: Icon(icon, size: 13, color: context.textColor70),
+      label: Text(label, style: TextStyle(color: context.textColor70, fontSize: 11)),
+      backgroundColor: Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       onPressed: onTap,
@@ -468,9 +468,9 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildTextInputPanel() {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1E293B),
-        border: Border(top: BorderSide(color: Color(0x11FFFFFF))),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        border: Border(top: BorderSide(color: context.isDarkMode ? const Color(0x11FFFFFF) : const Color(0x0A000000))),
       ),
       child: Row(
         children: [
@@ -478,13 +478,13 @@ class _ChatScreenState extends State<ChatScreen> {
             child: TextField(
               controller: _msgController,
               onSubmitted: (_) => _sendMessage(),
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: TextStyle(color: context.textColor, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Type your message...',
-                hintStyle: const TextStyle(color: Colors.white30),
+                hintStyle: TextStyle(color: context.textColor30),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 filled: true,
-                fillColor: const Color(0xFF0B0F19),
+                fillColor: Theme.of(context).scaffoldBackgroundColor,
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                   borderSide: const BorderSide(color: Colors.transparent),
