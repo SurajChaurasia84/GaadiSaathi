@@ -70,7 +70,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     final thread = appState.chatThreads[threadIndex];
-    final isOwner = appState.currentUserRole == 'Owner';
+    final isOwner = appState.currentGmail == thread.ownerGmail;
     final chatPartnerName = isOwner ? thread.customerName : thread.ownerName;
     final messages = thread.messages;
 
@@ -394,7 +394,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildQuickActions(AppState appState, ChatThread thread) {
-    final isOwner = appState.currentUserRole == 'Owner';
+    final isOwner = appState.currentGmail == thread.ownerGmail;
 
     // Fetch the rate from the owner's vehicle
     double activeRate = 12.0;
