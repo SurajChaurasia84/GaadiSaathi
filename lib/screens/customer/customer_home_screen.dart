@@ -58,7 +58,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           _currentIndex == 0
               ? 'GaadiSaathi'
               : _currentIndex == 1
-                  ? 'Request a Ride'
+                  ? 'Request a Vehicle'
                   : 'My Profile',
           style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold),
         ),
@@ -97,7 +97,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.add_circle_outline_rounded),
-            label: 'Add Request',
+            label: 'Add',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_rounded),
@@ -302,7 +302,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Post Travel Requirement',
+                    'Post Rental Requirement',
                     style: TextStyle(
                       color: context.textColor,
                       fontSize: 18,
@@ -311,7 +311,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Post your pickup and drop locations. Registered owners nearby will view your request and contact you directly.',
+                    'Post your pickup location and rental needs. Registered owners nearby will view your request and contact you directly.',
                     style: TextStyle(color: context.textColor54, fontSize: 12, height: 1.3),
                   ),
                   const SizedBox(height: 20),
@@ -447,7 +447,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       });
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Travel Requirement Posted Successfully!'),
+                          content: Text('Vehicle Requirement Posted Successfully!'),
                           backgroundColor: Color(0xFF10B981),
                         ),
                       );
@@ -457,7 +457,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('Post Ride Requirement', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text('Post Vehicle Requirement', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -668,7 +668,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildStatItem('Rides Completed', '12'),
+                _buildStatItem('Rentals Completed', '12'),
                 _buildStatItem('Total Spent', '₹840'),
                 _buildStatItem('Active Posts', '${_postedRequests.length}'),
               ],
