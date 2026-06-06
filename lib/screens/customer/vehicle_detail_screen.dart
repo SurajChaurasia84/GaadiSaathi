@@ -174,6 +174,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         CircleAvatar(
                           backgroundColor: const Color(0xFF536DFE),
@@ -203,6 +204,42 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                                   fontSize: 12,
                                 ),
                               ),
+                              if (widget.vehicle.phoneNumber != null && widget.vehicle.phoneNumber!.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.phone_rounded, color: Color(0xFF10B981), size: 14),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      widget.vehicle.phoneNumber!,
+                                      style: TextStyle(
+                                        color: context.textColor70,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              if (widget.vehicle.address != null && widget.vehicle.address!.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.location_on_rounded, color: Color(0xFF536DFE), size: 14),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        widget.vehicle.address!,
+                                        style: TextStyle(
+                                          color: context.textColor54,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ],
                           ),
                         ),
