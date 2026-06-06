@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../widgets/theme_selector.dart';
 import 'login_screen.dart';
+import 'customer/customer_home_screen.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final appState = Provider.of<AppState>(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0F19),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          buildThemeSelector(context, appState),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
@@ -35,11 +47,11 @@ class RoleSelectionScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              const Center(
+              Center(
                 child: Text(
                   'GaadiSaathi',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: context.textColor,
                     fontSize: 32,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -0.5,
@@ -52,17 +64,17 @@ class RoleSelectionScreen extends StatelessWidget {
                   'Instant Car, E-Rickshaw & Loading Rides',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
+                    color: context.textColor54,
                     fontSize: 15,
                   ),
                 ),
               ),
               const Spacer(),
-              const Text(
+              Text(
                 'CHOOSE YOUR ROLE',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white30,
+                  color: context.textColor30,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.5,
@@ -87,6 +99,30 @@ class RoleSelectionScreen extends StatelessWidget {
                 icon: Icons.vpn_key_rounded,
                 gradientColors: [const Color(0xFF10B981), const Color(0xFF059669)],
                 role: 'Owner',
+              ),
+              const SizedBox(height: 24),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () {
+                    final appState = Provider.of<AppState>(context, listen: false);
+                    appState.setRole('Customer');
+                    appState.loginSimulated('guest.customer@gmail.com', 'Guest Customer');
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
+                      (route) => false,
+                    );
+                  },
+                  icon: const Icon(Icons.arrow_forward_rounded, color: Color(0xFF536DFE), size: 16),
+                  label: const Text(
+                    'Skip Login & Browse as Guest',
+                    style: TextStyle(
+                      color: Color(0xFF536DFE),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
               ),
               const Spacer(),
             ],

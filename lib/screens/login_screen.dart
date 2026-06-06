@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../widgets/theme_selector.dart';
 import 'owner/owner_register_screen.dart';
 import 'owner/owner_dashboard_screen.dart';
 import 'customer/customer_home_screen.dart';
@@ -48,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     // Simulate network delay for Gmail Login authentication
-    await Future.delayed(const Duration(seconds: 1200));
+    await Future.delayed(const Duration(milliseconds: 1200));
 
     if (!mounted) return;
 
@@ -76,6 +77,31 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (context) => const OwnerRegisterScreen()),
         );
       }
+    }
+  }
+
+  void _handleGuestLogin() {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final isOwner = appState.currentUserRole == 'Owner';
+
+    appState.loginSimulated(
+      isOwner ? 'guest.owner@gmail.com' : 'guest.customer@gmail.com',
+      isOwner ? 'Guest Owner' : 'Guest Customer',
+    );
+
+    if (isOwner) {
+      if (appState.ownerVehicle != null) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const OwnerDashboardScreen()),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const OwnerRegisterScreen()),
+        );
+      }
     } else {
       Navigator.pushAndRemoveUntil(
         context,
@@ -89,16 +115,21 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
     final isOwner = appState.currentUserRole == 'Owner';
+    final isDark = context.isDarkMode;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0F19),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          icon: Icon(Icons.arrow_back_rounded, color: context.textColor),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          buildThemeSelector(context, appState),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -135,11 +166,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Center(
+                Center(
                   child: Text(
                     'Gmail Authentication',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: context.textColor,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
@@ -150,7 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Text(
                     'Sign in to your account as ${isOwner ? "Owner" : "Customer"}',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
+                      color: context.textColor54,
                       fontSize: 14,
                     ),
                   ),
@@ -159,13 +190,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Name Input
                 TextFormField(
                   controller: _nameController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: context.textColor),
                   decoration: InputDecoration(
                     labelText: 'Full Name',
-                    labelStyle: const TextStyle(color: Colors.white38),
-                    prefixIcon: const Icon(Icons.person_outline_rounded, color: Colors.white38),
+                    labelStyle: TextStyle(color: context.textColor30),
+                    prefixIcon: Icon(Icons.person_outline_rounded, color: context.textColor30),
                     filled: true,
-                    fillColor: const Color(0xFF1E293B),
+                    fillColor: Theme.of(context).cardColor,
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: const BorderSide(color: Colors.transparent),
@@ -194,14 +225,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Email Input
                 TextFormField(
                   controller: _emailController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: context.textColor),
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
                     labelText: 'Google Email Address',
-                    labelStyle: const TextStyle(color: Colors.white38),
-                    prefixIcon: const Icon(Icons.email_outlined, color: Colors.white38),
+                    labelStyle: TextStyle(color: context.textColor30),
+                    prefixIcon: Icon(Icons.email_outlined, color: context.textColor30),
                     filled: true,
-                    fillColor: const Color(0xFF1E293B),
+                    fillColor: Theme.of(context).cardColor,
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: const BorderSide(color: Colors.transparent),
@@ -236,7 +267,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isOwner ? const Color(0xFF10B981) : const Color(0xFF536DFE),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.white12,
+                    disabledBackgroundColor: isDark ? Colors.white12 : Colors.black12,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -272,6 +303,38 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                 ),
+                const SizedBox(height: 16),
+                OutlinedButton(
+                  onPressed: _isLoading ? null : _handleGuestLogin,
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: isOwner ? const Color(0xFF10B981) : const Color(0xFF536DFE),
+                      width: 1.5,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.person_outline_rounded,
+                        color: isOwner ? const Color(0xFF10B981) : const Color(0xFF536DFE),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Continue as Guest',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isOwner ? const Color(0xFF10B981) : const Color(0xFF536DFE),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 24),
                 // Help text
                 Center(
@@ -279,7 +342,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     'We automatically pre-fill demo details for testing.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.3),
+                      color: context.textColor30,
                       fontSize: 11,
                     ),
                   ),
