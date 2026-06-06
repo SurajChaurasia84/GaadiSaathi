@@ -61,7 +61,7 @@ class RoleSelectionScreen extends StatelessWidget {
               const SizedBox(height: 8),
               Center(
                 child: Text(
-                  'Instant Car, E-Rickshaw & Loading Rides',
+                  'Instant Car, E-Rickshaw & Loading Rentals',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: context.textColor54,
@@ -85,7 +85,7 @@ class RoleSelectionScreen extends StatelessWidget {
               _buildRoleCard(
                 context: context,
                 title: 'I am a Customer',
-                subtitle: 'Find rides, negotiate rates, and chat with owners instantly.',
+                subtitle: 'Book vehicles, negotiate rates, and chat with owners instantly.',
                 icon: Icons.search_rounded,
                 gradientColors: [const Color(0xFF536DFE), const Color(0xFF3F51B5)],
                 role: 'Customer',
