@@ -16,11 +16,13 @@ class AppState extends ChangeNotifier {
   String? currentUserName;
   String? currentUserRole; // 'Owner' or 'Customer'
   String? currentUserPhotoUrl;
+  String? currentUserPhone;
+  String? currentUserAddress;
 
   // Location state
   bool isLocationOn = false;
-  double customerLatitude = 28.6139; // Delhi center as default
-  double customerLongitude = 77.2090;
+  double customerLatitude = 0.0;
+  double customerLongitude = 0.0;
   double searchRadiusKm = 3.0; // Default requirement: 3.0 Km
   String searchQuery = '';
   VehicleType? selectedCategoryFilter;
@@ -101,12 +103,90 @@ class AppState extends ChangeNotifier {
     } catch (_) {}
   }
 
+  // Load user data from local storage
+  void _loadUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      currentUserPhone = prefs.getString('user_phone');
+      currentUserAddress = prefs.getString('user_address');
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  // Sync user document from Firestore
+  void _syncUserDoc() {
+    _userDocSubscription?.cancel();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _userDocSubscription = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((docSnapshot) {
+        if (docSnapshot.exists) {
+          final data = docSnapshot.data();
+          if (data != null) {
+            currentUserName = data['name'] as String? ?? currentUserName;
+            currentUserPhone = data['phone'] as String? ?? currentUserPhone;
+            currentUserAddress = data['address'] as String? ?? currentUserAddress;
+            currentUserPhotoUrl = data['photoUrl'] as String? ?? currentUserPhotoUrl;
+            
+            _persistUserDataLocally();
+            notifyListeners();
+          }
+        }
+      });
+    }
+  }
+
+  void _persistUserDataLocally() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (currentUserName != null) await prefs.setString('user_name', currentUserName!);
+      if (currentUserPhone != null) await prefs.setString('user_phone', currentUserPhone!);
+      if (currentUserAddress != null) await prefs.setString('user_address', currentUserAddress!);
+      if (currentUserPhotoUrl != null) await prefs.setString('user_photo', currentUserPhotoUrl!);
+    } catch (_) {}
+  }
+
+  // Update user profile in local cache and Firestore
+  Future<void> updateProfile({
+    required String name,
+    required String phone,
+    required String address,
+  }) async {
+    currentUserName = name;
+    currentUserPhone = phone;
+    currentUserAddress = address;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_name', name);
+      await prefs.setString('user_phone', phone);
+      await prefs.setString('user_address', address);
+    } catch (_) {}
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'name': name,
+          'phone': phone,
+          'address': address,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+    } catch (_) {}
+  }
+
   // All mock vehicles in system
   List<Vehicle> _allVehicles = [];
 
   // Firestore Subscriptions
   StreamSubscription? _vehiclesSubscription;
   StreamSubscription? _chatsSubscription;
+  StreamSubscription? _userDocSubscription;
   final Map<String, StreamSubscription> _messageSubscriptions = {};
 
   AppState({
@@ -120,10 +200,12 @@ class AppState extends ChangeNotifier {
     currentUserPhotoUrl = initialPhoto;
     _themeMode = initialThemeMode;
     _loadLastReadTimes();
+    _loadUserData();
     _syncWithFirestore();
   }
 
   void _syncWithFirestore() {
+    _syncUserDoc();
     // 1. Sync vehicles collection
     _vehiclesSubscription?.cancel();
     _vehiclesSubscription = FirebaseFirestore.instance
@@ -385,8 +467,8 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       // Graceful fallback for simulator/emulator/errors
-      customerLatitude = 28.6139;
-      customerLongitude = 77.2090;
+      customerLatitude = 0.0;
+      customerLongitude = 0.0;
       currentAddress = 'Location Unavailable';
       isLocationOn = true;
       notifyListeners();
@@ -535,6 +617,7 @@ class AppState extends ChangeNotifier {
   void dispose() {
     _vehiclesSubscription?.cancel();
     _chatsSubscription?.cancel();
+    _userDocSubscription?.cancel();
     for (var sub in _messageSubscriptions.values) {
       sub.cancel();
     }
