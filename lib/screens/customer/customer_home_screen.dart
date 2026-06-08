@@ -1,13 +1,16 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
 import '../../widgets/vehicle_card.dart';
 import '../login_screen.dart';
 import 'inbox_screen.dart';
+import 'edit_profile_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -32,6 +35,34 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   final _rateController = TextEditingController();
   VehicleType _selectedVehicleType = VehicleType.car;
   bool _isAvailable = true;
+
+  String? _pickedOutsidePhotoPath;
+  String? _pickedInsidePhotoPath;
+
+  Future<void> _pickImage({required bool isOutside}) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        setState(() {
+          if (isOutside) {
+            _pickedOutsidePhotoPath = image.path;
+          } else {
+            _pickedInsidePhotoPath = image.path;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -427,8 +458,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           icon: const Icon(Icons.my_location_rounded, color: Color(0xFF536DFE), size: 20),
                           tooltip: 'Use Current Location',
                           onPressed: () async {
-                            ScaffoldMessenger.of(context).clearSnackBars();
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            final messenger = ScaffoldMessenger.of(context);
+                            messenger.clearSnackBars();
+                            messenger.showSnackBar(
                               const SnackBar(
                                 content: Row(
                                   children: [
@@ -441,10 +473,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                                     Text('Fetching location...'),
                                   ],
                                 ),
-                                duration: Duration(milliseconds: 1500),
+                                duration: Duration(days: 1),
                               ),
                             );
                             await appState.fetchCurrentLocation();
+                            messenger.clearSnackBars();
                             _addressController.text = appState.currentAddress;
                           },
                         ),
@@ -616,6 +649,95 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     ),
                   ),
                   
+                  const SizedBox(height: 16),
+                  Text(
+                    'VEHICLE PHOTOS',
+                    style: TextStyle(
+                      color: context.textColor30,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      // Outside Photo Picker
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _pickImage(isOutside: true),
+                          child: Container(
+                            height: 100,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: _pickedOutsidePhotoPath != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.file(
+                                      File(_pickedOutsidePhotoPath!),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF536DFE), size: 24),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Outside Photo',
+                                        style: TextStyle(color: context.textColor54, fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Inside Photo Picker
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _pickImage(isOutside: false),
+                          child: Container(
+                            height: 100,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: _pickedInsidePhotoPath != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.file(
+                                      File(_pickedInsidePhotoPath!),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF536DFE), size: 24),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Inside Photo',
+                                        style: TextStyle(color: context.textColor54, fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
                   const SizedBox(height: 24),
 
                   // Submit Button
@@ -631,8 +753,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         ownerGmail: appState.currentGmail ?? 'guest.customer@gmail.com',
                         type: _selectedVehicleType,
                         model: _modelNameController.text.trim(),
-                        insidePhotoUrl: _getDefaultInsidePhoto(_selectedVehicleType),
-                        outsidePhotoUrl: _getDefaultOutsidePhoto(_selectedVehicleType),
+                        insidePhotoUrl: _pickedInsidePhotoPath ?? _getDefaultInsidePhoto(_selectedVehicleType),
+                        outsidePhotoUrl: _pickedOutsidePhotoPath ?? _getDefaultOutsidePhoto(_selectedVehicleType),
                         ratePerKm: double.tryParse(_rateController.text.trim()) ?? 0.0,
                         isServiceOn: _isAvailable,
                         latitude: appState.customerLatitude + (Random().nextDouble() - 0.5) * 0.02,
@@ -651,6 +773,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         _modelNameController.clear();
                         _rateController.clear();
                         _isAvailable = true;
+                        _pickedOutsidePhotoPath = null;
+                        _pickedInsidePhotoPath = null;
                       });
 
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -790,7 +914,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   context: context,
                   icon: Icons.person_outline_rounded,
                   title: 'Edit Profile',
-                  onTap: () => _showComingSoonSnackBar(context, 'Edit Profile'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                    );
+                  },
                 ),
                 _buildDivider(context),
                 _buildSettingTile(
