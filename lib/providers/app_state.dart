@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/vehicle.dart';
 import '../models/chat.dart';
 
@@ -37,8 +39,16 @@ class AppState extends ChangeNotifier {
   StreamSubscription? _chatsSubscription;
   final Map<String, StreamSubscription> _messageSubscriptions = {};
 
-  AppState() {
-    _loadThemeFromPrefs();
+  AppState({
+    String? initialEmail,
+    String? initialName,
+    String? initialPhoto,
+    ThemeMode initialThemeMode = ThemeMode.system,
+  }) {
+    currentGmail = initialEmail;
+    currentUserName = initialName;
+    currentUserPhotoUrl = initialPhoto;
+    _themeMode = initialThemeMode;
     _syncWithFirestore();
   }
 
@@ -307,7 +317,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void loginSimulated(String gmail, String name, {String? photoUrl}) {
+  Future<void> loginSimulated(String gmail, String name, {String? photoUrl}) async {
     currentGmail = gmail;
     currentUserName = name;
     currentUserPhotoUrl = photoUrl;
@@ -327,9 +337,20 @@ class AppState extends ChangeNotifier {
 
     _syncWithFirestore();
     notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_email', gmail);
+      await prefs.setString('user_name', name);
+      if (photoUrl != null) {
+        await prefs.setString('user_photo', photoUrl);
+      } else {
+        await prefs.remove('user_photo');
+      }
+    } catch (_) {}
   }
 
-  void logout() {
+  Future<void> logout() async {
     currentGmail = null;
     currentUserName = null;
     currentUserRole = null;
@@ -341,6 +362,18 @@ class AppState extends ChangeNotifier {
     }
     _messageSubscriptions.clear();
     notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user_email');
+      await prefs.remove('user_name');
+      await prefs.remove('user_photo');
+    } catch (_) {}
+
+    try {
+      await FirebaseAuth.instance.signOut();
+      await GoogleSignIn().signOut();
+    } catch (_) {}
   }
 
   // Simulation step: Auto Location on
@@ -554,16 +587,6 @@ class AppState extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   ThemeMode get themeMode => _themeMode;
 
-  Future<void> _loadThemeFromPrefs() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final themeIndex = prefs.getInt('theme_mode') ?? 0;
-      if (themeIndex >= 0 && themeIndex < ThemeMode.values.length) {
-        _themeMode = ThemeMode.values[themeIndex];
-        notifyListeners();
-      }
-    } catch (_) {}
-  }
 
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
