@@ -668,11 +668,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         children: [
           // Header Card
           Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000)),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: const BoxDecoration(
+              color: Colors.transparent,
             ),
             child: Column(
               children: [
@@ -704,25 +702,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Stats card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatItem('Rentals Completed', '12'),
-                _buildStatItem('Total Spent', '₹840'),
-                _buildStatItem('My Vehicles', '${_addedVehicles.length}'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
           // Settings Section Title
           Text(
             'SETTINGS & PREFERENCES',
@@ -745,9 +724,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             child: Column(
               children: [
                 ListTile(
+                  dense: true,
+                  visualDensity: const VisualDensity(horizontal: 0, vertical: -3),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
                   leading: const Icon(Icons.palette_rounded, color: Color(0xFF536DFE)),
                   title: Text('Theme Settings', style: TextStyle(color: context.textColor, fontSize: 14)),
-                  subtitle: Text('Change application theme layout', style: TextStyle(color: context.textColor54, fontSize: 12)),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -765,11 +746,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   ),
                   onTap: () => _showThemeBottomSheet(context, appState),
                 ),
-                const Divider(height: 1),
                 ListTile(
+                  dense: true,
+                  visualDensity: const VisualDensity(horizontal: 0, vertical: -3),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
                   leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
                   title: Text('Log Out', style: TextStyle(color: context.textColor, fontSize: 14)),
-                  subtitle: Text('Log out of this guest session', style: TextStyle(color: context.textColor54, fontSize: 12)),
                   onTap: () {
                     appState.logout();
                     Navigator.pushAndRemoveUntil(
@@ -787,23 +769,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       ),
     );
   }
-
-  Widget _buildStatItem(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(color: Color(0xFF536DFE), fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(color: context.textColor54, fontSize: 10),
-        ),
-      ],
-    );
-  }
-
 
   Widget _buildChatAction(BuildContext context, AppState appState) {
     return Stack(
