@@ -79,79 +79,90 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: _currentIndex == 0
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'GaadiSaathi',
-                    style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 18),
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 12),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          appState.currentAddress,
-                          style: TextStyle(color: context.textColor54, fontSize: 11, fontWeight: FontWeight.normal),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              )
-            : Text(
-                _currentIndex == 1 ? 'Add Vehicle' : 'My Profile',
-                style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold),
-              ),
-        actions: _currentIndex == 0
-            ? [
-                _buildChatAction(context, appState),
-                const SizedBox(width: 8),
-              ]
-            : null,
-      ),
-      body: _currentIndex == 0
-          ? _buildBrowseTab(appState)
-          : _currentIndex == 1
-              ? _buildAddRequestTab(appState)
-              : _buildProfileTab(appState),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
+    return PopScope(
+      canPop: _currentIndex == 0,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        if (_currentIndex != 0) {
           setState(() {
-            _currentIndex = index;
+            _currentIndex = 0;
           });
-        },
-        backgroundColor: Theme.of(context).cardColor,
-        selectedItemColor: const Color(0xFF536DFE),
-        unselectedItemColor: context.textColor30,
-        showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.explore_rounded),
-            label: 'Explore',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle_outline_rounded),
-            label: 'Add',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_rounded),
-            label: 'Profile',
-          ),
-        ],
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: _currentIndex == 0
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'GaadiSaathi',
+                      style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 12),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            appState.currentAddress,
+                            style: TextStyle(color: context.textColor54, fontSize: 11, fontWeight: FontWeight.normal),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              : Text(
+                  _currentIndex == 1 ? 'Add Vehicle' : 'My Profile',
+                  style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold),
+                ),
+          actions: _currentIndex == 0
+              ? [
+                  _buildChatAction(context, appState),
+                  const SizedBox(width: 8),
+                ]
+              : null,
+        ),
+        body: _currentIndex == 0
+            ? _buildBrowseTab(appState)
+            : _currentIndex == 1
+                ? _buildAddRequestTab(appState)
+                : _buildProfileTab(appState),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          backgroundColor: Theme.of(context).cardColor,
+          selectedItemColor: const Color(0xFF536DFE),
+          unselectedItemColor: context.textColor30,
+          showUnselectedLabels: true,
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.explore_rounded),
+              label: 'Explore',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.add_circle_outline_rounded),
+              label: 'Add',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_rounded),
+              label: 'Profile',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1019,21 +1030,19 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             );
           },
         ),
-        Positioned(
-          top: 8,
-          right: 8,
-          child: Container(
-            padding: const EdgeInsets.all(4),
-            decoration: const BoxDecoration(
-              color: Colors.red,
-              shape: BoxShape.circle,
-            ),
-            child: const Text(
-              '1',
-              style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+        if (appState.hasAnyUnreadMessages)
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
             ),
           ),
-        ),
       ],
     );
   }
