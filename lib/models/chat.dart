@@ -38,6 +38,53 @@ class ChatMessage {
       ratePerKm: ratePerKm ?? this.ratePerKm,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'senderId': senderId,
+      'text': text,
+      'timestamp': timestamp.millisecondsSinceEpoch,
+      'isBookingProposal': isBookingProposal,
+      'bookingStatus': bookingStatus?.name,
+      'ratePerKm': ratePerKm,
+    };
+  }
+
+  factory ChatMessage.fromMap(Map<String, dynamic> map) {
+    BookingStatus? status;
+    final statusStr = map['bookingStatus'] as String?;
+    if (statusStr != null) {
+      for (var val in BookingStatus.values) {
+        if (val.name == statusStr) {
+          status = val;
+          break;
+        }
+      }
+    }
+
+    DateTime parsedTime = DateTime.now();
+    final ts = map['timestamp'];
+    if (ts is int) {
+      parsedTime = DateTime.fromMillisecondsSinceEpoch(ts);
+    } else if (ts != null) {
+      try {
+        parsedTime = ts.toDate();
+      } catch (_) {
+        try {
+          parsedTime = DateTime.parse(ts.toString());
+        } catch (_) {}
+      }
+    }
+
+    return ChatMessage(
+      senderId: map['senderId'] as String? ?? '',
+      text: map['text'] as String? ?? '',
+      timestamp: parsedTime,
+      isBookingProposal: map['isBookingProposal'] as bool? ?? false,
+      bookingStatus: status,
+      ratePerKm: (map['ratePerKm'] as num?)?.toDouble(),
+    );
+  }
 }
 
 class ChatThread {
@@ -86,6 +133,29 @@ class ChatThread {
       ownerGmail: ownerGmail ?? this.ownerGmail,
       vehicleModel: vehicleModel ?? this.vehicleModel,
       messages: messages ?? this.messages,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'threadId': threadId,
+      'customerName': customerName,
+      'customerGmail': customerGmail,
+      'ownerName': ownerName,
+      'ownerGmail': ownerGmail,
+      'vehicleModel': vehicleModel,
+    };
+  }
+
+  factory ChatThread.fromMap(Map<String, dynamic> map, String docId, List<ChatMessage> msgs) {
+    return ChatThread(
+      threadId: docId,
+      customerName: map['customerName'] as String? ?? '',
+      customerGmail: map['customerGmail'] as String? ?? '',
+      ownerName: map['ownerName'] as String? ?? '',
+      ownerGmail: map['ownerGmail'] as String? ?? '',
+      vehicleModel: map['vehicleModel'] as String? ?? '',
+      messages: msgs,
     );
   }
 }
