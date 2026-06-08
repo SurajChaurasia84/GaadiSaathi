@@ -79,4 +79,51 @@ class Vehicle {
       address: address ?? this.address,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'ownerName': ownerName,
+      'ownerGmail': ownerGmail,
+      'type': type.name,
+      'model': model,
+      'insidePhotoUrl': insidePhotoUrl,
+      'outsidePhotoUrl': outsidePhotoUrl,
+      'ratePerKm': ratePerKm,
+      'isServiceOn': isServiceOn,
+      'latitude': latitude,
+      'longitude': longitude,
+      'phoneNumber': phoneNumber,
+      'address': address,
+    };
+  }
+
+  factory Vehicle.fromMap(Map<String, dynamic> map, String docId) {
+    VehicleType parsedType = VehicleType.car;
+    final typeStr = map['type'] as String?;
+    if (typeStr != null) {
+      for (var val in VehicleType.values) {
+        if (val.name == typeStr) {
+          parsedType = val;
+          break;
+        }
+      }
+    }
+
+    return Vehicle(
+      id: docId,
+      ownerName: map['ownerName'] as String? ?? '',
+      ownerGmail: map['ownerGmail'] as String? ?? '',
+      type: parsedType,
+      model: map['model'] as String? ?? '',
+      insidePhotoUrl: map['insidePhotoUrl'] as String? ?? '',
+      outsidePhotoUrl: map['outsidePhotoUrl'] as String? ?? '',
+      ratePerKm: (map['ratePerKm'] as num?)?.toDouble() ?? 0.0,
+      isServiceOn: map['isServiceOn'] as bool? ?? false,
+      latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
+      phoneNumber: map['phoneNumber'] as String?,
+      address: map['address'] as String?,
+    );
+  }
 }
