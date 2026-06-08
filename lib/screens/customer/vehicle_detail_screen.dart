@@ -118,9 +118,9 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: typeColor.withOpacity(0.15),
+                          color: typeColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: typeColor.withOpacity(0.4)),
+                          border: Border.all(color: typeColor.withValues(alpha: 0.4)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -255,7 +255,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.2)),
+                      border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -362,7 +362,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       elevation: 5,
-                      shadowColor: const Color(0xFF536DFE).withOpacity(0.3),
+                      shadowColor: const Color(0xFF536DFE).withValues(alpha: 0.3),
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
