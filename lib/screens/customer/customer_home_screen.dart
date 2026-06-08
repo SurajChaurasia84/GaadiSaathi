@@ -5,12 +5,14 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
 import '../../widgets/vehicle_card.dart';
 import '../login_screen.dart';
 import 'inbox_screen.dart';
 import 'edit_profile_screen.dart';
+import 'vehicle_history_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -19,7 +21,7 @@ class CustomerHomeScreen extends StatefulWidget {
   State<CustomerHomeScreen> createState() => _CustomerHomeScreenState();
 }
 
-class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
+class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   final TextEditingController _searchController = TextEditingController();
 
@@ -67,14 +69,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Simulate automatic GPS location activation on startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<AppState>(context, listen: false).triggerLocationOn();
+      _initLocationFlow();
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     _ownerNameController.dispose();
     _phoneController.dispose();
@@ -82,6 +86,80 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     _modelNameController.dispose();
     _rateController.dispose();
     super.dispose();
+  }
+
+  Future<void> _initLocationFlow() async {
+    final appState = Provider.of<AppState>(context, listen: false);
+    
+    // First, check location service status
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (!mounted) return;
+      _showLocationServiceDialog();
+    } else {
+      // If service is enabled, trigger location fetching
+      appState.triggerLocationOn();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Re-check location service when returning from settings
+      _checkLocationServiceStatusOnResume();
+    }
+  }
+
+  Future<void> _checkLocationServiceStatusOnResume() async {
+    final appState = Provider.of<AppState>(context, listen: false);
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (serviceEnabled && (appState.currentAddress == 'Location Unavailable' || appState.currentAddress == 'Fetching...')) {
+      appState.triggerLocationOn();
+    }
+  }
+
+  void _showLocationServiceDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.location_off_rounded, color: Colors.redAccent),
+              SizedBox(width: 8),
+              Text('Location Services Off', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: const Text(
+            'Your device location services are turned off. Please enable location to find vehicles near you.',
+            style: TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                // Trigger normal initialization to show Location Unavailable screen
+                Provider.of<AppState>(context, listen: false).triggerLocationOn();
+              },
+              child: Text('Cancel', style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                await Geolocator.openLocationSettings();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF536DFE),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Open Settings', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   String _getDefaultOutsidePhoto(VehicleType type) {
@@ -137,16 +215,36 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 12),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            appState.currentAddress,
-                            style: TextStyle(color: context.textColor54, fontSize: 11, fontWeight: FontWeight.normal),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        if (appState.isFetchingLocation) ...[
+                          const SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF536DFE),
+                              strokeWidth: 1.5,
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Fetching...',
+                              style: TextStyle(color: context.textColor54, fontSize: 11, fontWeight: FontWeight.normal),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ] else ...[
+                          const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 12),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              appState.currentAddress,
+                              style: TextStyle(color: context.textColor54, fontSize: 11, fontWeight: FontWeight.normal),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -443,44 +541,38 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   // Address Input
                   TextFormField(
                     controller: _addressController,
-                    maxLines: 2,
+                    maxLines: 1,
                     style: TextStyle(color: context.textColor, fontSize: 14),
                     decoration: InputDecoration(
                       labelText: 'Address',
                       labelStyle: TextStyle(color: context.textColor30),
-                      prefixIcon: Padding(
-                        padding: const EdgeInsets.only(bottom: 24.0),
-                        child: Icon(Icons.location_on_rounded, color: context.textColor30, size: 18),
-                      ),
-                      suffixIcon: Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
-                        child: IconButton(
-                          icon: const Icon(Icons.my_location_rounded, color: Color(0xFF536DFE), size: 20),
-                          tooltip: 'Use Current Location',
-                          onPressed: () async {
-                            final messenger = ScaffoldMessenger.of(context);
-                            messenger.clearSnackBars();
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                content: Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                    ),
-                                    SizedBox(width: 12),
-                                    Text('Fetching location...'),
-                                  ],
-                                ),
-                                duration: Duration(days: 1),
+                      prefixIcon: Icon(Icons.location_on_rounded, color: context.textColor30, size: 18),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.my_location_rounded, color: Color(0xFF536DFE), size: 20),
+                        tooltip: 'Use Current Location',
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          messenger.clearSnackBars();
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  ),
+                                  SizedBox(width: 12),
+                                  Text('Fetching location...'),
+                                ],
                               ),
-                            );
-                            await appState.fetchCurrentLocation();
-                            messenger.clearSnackBars();
-                            _addressController.text = appState.currentAddress;
-                          },
-                        ),
+                              duration: Duration(days: 1),
+                            ),
+                          );
+                          await appState.fetchCurrentLocation();
+                          messenger.clearSnackBars();
+                          _addressController.text = appState.currentAddress;
+                        },
                       ),
                       filled: true,
                       fillColor: Theme.of(context).cardColor,
@@ -742,9 +834,45 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
                   // Submit Button
                   ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (!_addFormKey.currentState!.validate()) return;
                       final appState = Provider.of<AppState>(context, listen: false);
+                      final messenger = ScaffoldMessenger.of(context);
+
+                      // Show loading SnackBar
+                      messenger.clearSnackBars();
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Row(
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              ),
+                              SizedBox(width: 12),
+                              Text('Uploading images to Cloudinary...'),
+                            ],
+                          ),
+                          duration: Duration(days: 1),
+                        ),
+                      );
+
+                      String? finalOutsideUrl;
+                      String? finalInsideUrl;
+
+                      // Upload outside photo if custom one is picked
+                      if (_pickedOutsidePhotoPath != null) {
+                        finalOutsideUrl = await appState.uploadToCloudinary(_pickedOutsidePhotoPath!);
+                      }
+
+                      // Upload inside photo if custom one is picked
+                      if (_pickedInsidePhotoPath != null) {
+                        finalInsideUrl = await appState.uploadToCloudinary(_pickedInsidePhotoPath!);
+                      }
+
+                      // Clear SnackBar
+                      messenger.clearSnackBars();
 
                       // Create and add new vehicle
                       final newVehicle = Vehicle(
@@ -753,8 +881,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         ownerGmail: appState.currentGmail ?? 'guest.customer@gmail.com',
                         type: _selectedVehicleType,
                         model: _modelNameController.text.trim(),
-                        insidePhotoUrl: _pickedInsidePhotoPath ?? _getDefaultInsidePhoto(_selectedVehicleType),
-                        outsidePhotoUrl: _pickedOutsidePhotoPath ?? _getDefaultOutsidePhoto(_selectedVehicleType),
+                        insidePhotoUrl: finalInsideUrl ?? _getDefaultInsidePhoto(_selectedVehicleType),
+                        outsidePhotoUrl: finalOutsideUrl ?? _getDefaultOutsidePhoto(_selectedVehicleType),
                         ratePerKm: double.tryParse(_rateController.text.trim()) ?? 0.0,
                         isServiceOn: _isAvailable,
                         latitude: appState.customerLatitude + (Random().nextDouble() - 0.5) * 0.02,
@@ -765,6 +893,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
                       appState.addCustomVehicle(newVehicle);
 
+                      if (!mounted) return;
                       setState(() {
                         _addedVehicles.insert(0, newVehicle);
                         _ownerNameController.clear();
@@ -777,7 +906,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         _pickedInsidePhotoPath = null;
                       });
 
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      messenger.showSnackBar(
                         const SnackBar(
                           content: Text('Vehicle Registered & Listed Successfully!'),
                           backgroundColor: Color(0xFF10B981),
@@ -926,7 +1055,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   context: context,
                   icon: Icons.history_rounded,
                   title: 'Vehicle History',
-                  onTap: () => _showComingSoonSnackBar(context, 'Booking History'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const VehicleHistoryScreen(),
+                      ),
+                    );
+                  },
                 ),
                 _buildDivider(context),
                 // Theme Settings (custom trailing)
