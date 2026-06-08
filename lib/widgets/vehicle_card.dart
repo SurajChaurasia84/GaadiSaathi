@@ -40,7 +40,7 @@ class VehicleCard extends StatelessWidget {
         border: Border.all(color: context.isDarkMode ? const Color(0x11FFFFFF) : const Color(0x0A000000), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           )
@@ -77,7 +77,7 @@ class VehicleCard extends StatelessWidget {
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                         colors: [
-                          Theme.of(context).cardColor.withOpacity(0.9),
+                          Theme.of(context).cardColor.withValues(alpha: 0.9),
                           Colors.transparent,
                         ],
                       ),
@@ -119,9 +119,9 @@ class VehicleCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: typeColor.withOpacity(0.2),
+                      color: typeColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: typeColor.withOpacity(0.5)),
+                      border: Border.all(color: typeColor.withValues(alpha: 0.5)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
