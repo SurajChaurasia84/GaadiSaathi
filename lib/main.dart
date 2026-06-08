@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'screens/login_screen.dart';
 import 'providers/app_state.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(
     ChangeNotifierProvider(
       create: (context) => AppState(),
@@ -48,6 +51,7 @@ class MyApp extends StatelessWidget {
           ),
           backgroundColor: Colors.transparent,
           elevation: 0,
+          surfaceTintColor: Colors.transparent,
           titleTextStyle: GoogleFonts.outfit(
             color: const Color(0xFF0F172A),
             fontSize: 20,
@@ -80,6 +84,7 @@ class MyApp extends StatelessWidget {
           ),
           backgroundColor: Colors.transparent,
           elevation: 0,
+          surfaceTintColor: Colors.transparent,
           titleTextStyle: GoogleFonts.outfit(
             color: Colors.white,
             fontSize: 20,
