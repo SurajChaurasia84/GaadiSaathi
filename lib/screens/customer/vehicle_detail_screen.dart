@@ -47,6 +47,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
             expandedHeight: 280,
             pinned: true,
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            surfaceTintColor: Colors.transparent,
             leading: CircleAvatar(
               backgroundColor: const Color(0x66000000),
               child: IconButton(
