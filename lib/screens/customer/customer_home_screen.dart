@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
 import '../../widgets/vehicle_card.dart';
-import '../../widgets/theme_selector.dart';
 import '../login_screen.dart';
 import 'inbox_screen.dart';
 
@@ -93,7 +92,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         ),
         actions: _currentIndex == 0
             ? [
-                _buildNotificationAction(context),
                 _buildChatAction(context, appState),
                 const SizedBox(width: 8),
               ]
@@ -681,10 +679,15 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 CircleAvatar(
                   radius: 36,
                   backgroundColor: const Color(0xFF536DFE),
-                  child: Text(
-                    initial,
-                    style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
-                  ),
+                  backgroundImage: appState.currentUserPhotoUrl != null && appState.currentUserPhotoUrl!.isNotEmpty
+                      ? NetworkImage(appState.currentUserPhotoUrl!)
+                      : null,
+                  child: appState.currentUserPhotoUrl != null && appState.currentUserPhotoUrl!.isNotEmpty
+                      ? null
+                      : Text(
+                          initial,
+                          style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                        ),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -695,22 +698,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 Text(
                   email,
                   style: TextStyle(color: context.textColor54, fontSize: 13),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF536DFE).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'CUSTOMER MODE (GUEST)',
-                    style: TextStyle(
-                      color: Color(0xFF536DFE),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
                 ),
               ],
             ),
@@ -761,7 +748,22 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   leading: const Icon(Icons.palette_rounded, color: Color(0xFF536DFE)),
                   title: Text('Theme Settings', style: TextStyle(color: context.textColor, fontSize: 14)),
                   subtitle: Text('Change application theme layout', style: TextStyle(color: context.textColor54, fontSize: 12)),
-                  trailing: buildThemeSelector(context, appState),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        appState.themeMode == ThemeMode.system
+                            ? 'System'
+                            : appState.themeMode == ThemeMode.dark
+                                ? 'Dark'
+                                : 'Light',
+                        style: TextStyle(color: context.textColor30, fontSize: 12),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.chevron_right_rounded, color: context.textColor30, size: 20),
+                    ],
+                  ),
+                  onTap: () => _showThemeBottomSheet(context, appState),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -802,32 +804,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     );
   }
 
-  Widget _buildNotificationAction(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        IconButton(
-          icon: Icon(Icons.notifications_rounded, color: context.textColor),
-          onPressed: () => _showNotificationsBottomSheet(context),
-        ),
-        Positioned(
-          top: 8,
-          right: 8,
-          child: Container(
-            padding: const EdgeInsets.all(4),
-            decoration: const BoxDecoration(
-              color: Colors.red,
-              shape: BoxShape.circle,
-            ),
-            child: const Text(
-              '2',
-              style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildChatAction(BuildContext context, AppState appState) {
     return Stack(
@@ -861,13 +837,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     );
   }
 
-  void _showNotificationsBottomSheet(BuildContext context) {
+  void _showThemeBottomSheet(BuildContext context, AppState appState) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      backgroundColor: Theme.of(context).cardColor,
       builder: (context) {
         return Container(
           padding: const EdgeInsets.all(24),
@@ -875,36 +851,40 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Notifications',
-                    style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.close, color: context.textColor54),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
+              Text(
+                'Choose Theme',
+                style: TextStyle(
+                  color: context.textColor,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 16),
-              _buildNotificationItem(
-                context,
-                title: 'Booking Confirmed!',
-                body: 'Amit Sharma confirmed your booking request for White Swift.',
-                time: '10 mins ago',
-                icon: Icons.check_circle_rounded,
-                iconColor: const Color(0xFF10B981),
+              _buildThemeOption(
+                context: context,
+                appState: appState,
+                title: 'System Default',
+                icon: Icons.brightness_auto_rounded,
+                iconColor: Colors.blue,
+                mode: ThemeMode.system,
               ),
-              const SizedBox(height: 12),
-              _buildNotificationItem(
-                context,
-                title: 'New Service Active',
-                body: 'Sanjay Singh logged a Tata Ace Gold near Delhi.',
-                time: '2 hours ago',
-                icon: Icons.local_shipping_rounded,
-                iconColor: const Color(0xFF536DFE),
+              const SizedBox(height: 8),
+              _buildThemeOption(
+                context: context,
+                appState: appState,
+                title: 'Light Mode',
+                icon: Icons.light_mode_rounded,
+                iconColor: Colors.orange,
+                mode: ThemeMode.light,
+              ),
+              const SizedBox(height: 8),
+              _buildThemeOption(
+                context: context,
+                appState: appState,
+                title: 'Dark Mode',
+                icon: Icons.dark_mode_rounded,
+                iconColor: Colors.purple,
+                mode: ThemeMode.dark,
               ),
             ],
           ),
@@ -913,35 +893,50 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     );
   }
 
-  Widget _buildNotificationItem(BuildContext context, {
+  Widget _buildThemeOption({
+    required BuildContext context,
+    required AppState appState,
     required String title,
-    required String body,
-    required String time,
     required IconData icon,
     required Color iconColor,
+    required ThemeMode mode,
   }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CircleAvatar(
-          backgroundColor: iconColor.withOpacity(0.1),
-          child: Icon(icon, color: iconColor, size: 20),
+    final isSelected = appState.themeMode == mode;
+    return InkWell(
+      onTap: () {
+        appState.setThemeMode(mode);
+        Navigator.pop(context);
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 14)),
-              const SizedBox(height: 4),
-              Text(body, style: TextStyle(color: context.textColor54, fontSize: 12, height: 1.3)),
-              const SizedBox(height: 4),
-              Text(time, style: TextStyle(color: context.textColor30, fontSize: 10)),
-            ],
-          ),
+        child: Row(
+          children: [
+            Icon(icon, color: iconColor, size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: context.textColor,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle_rounded,
+                color: Color(0xFF536DFE),
+                size: 22,
+              ),
+          ],
         ),
-      ],
+      ),
     );
   }
-
 }
