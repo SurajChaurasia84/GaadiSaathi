@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import '../models/vehicle.dart';
 import '../models/chat.dart';
 
@@ -15,13 +17,14 @@ class AppState extends ChangeNotifier {
   String? currentUserRole; // 'Owner' or 'Customer'
   String? currentUserPhotoUrl;
 
-  // Location simulation
+  // Location state
   bool isLocationOn = false;
   double customerLatitude = 28.6139; // Delhi center as default
   double customerLongitude = 77.2090;
   double searchRadiusKm = 3.0; // Default requirement: 3.0 Km
   String searchQuery = '';
   VehicleType? selectedCategoryFilter;
+  String currentAddress = 'Delhi, India';
 
   // Owner state
   Vehicle? ownerVehicle;
@@ -380,9 +383,78 @@ class AppState extends ChangeNotifier {
   void triggerLocationOn() async {
     isLocationOn = false;
     notifyListeners();
-    await Future.delayed(const Duration(milliseconds: 800));
-    isLocationOn = true;
-    notifyListeners();
+    await fetchCurrentLocation();
+  }
+
+  Future<void> fetchCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    try {
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        currentAddress = 'GPS Disabled (Connaught Place, Delhi)';
+        isLocationOn = true;
+        notifyListeners();
+        return;
+      }
+
+      permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          currentAddress = 'Permission Denied (Connaught Place, Delhi)';
+          isLocationOn = true;
+          notifyListeners();
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        currentAddress = 'Permission Denied (Connaught Place, Delhi)';
+        isLocationOn = true;
+        notifyListeners();
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      customerLatitude = position.latitude;
+      customerLongitude = position.longitude;
+      isLocationOn = true;
+
+      // Reverse geocoding
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        final Placemark place = placemarks.first;
+        final parts = <String>[];
+        if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+          parts.add(place.subLocality!);
+        }
+        if (place.locality != null && place.locality!.isNotEmpty) {
+          parts.add(place.locality!);
+        }
+        currentAddress = parts.isNotEmpty ? parts.join(', ') : 'Location Detected';
+      } else {
+        currentAddress = 'Location Detected';
+      }
+      notifyListeners();
+    } catch (e) {
+      // Graceful fallback for simulator/emulator/errors
+      customerLatitude = 28.6139;
+      customerLongitude = 77.2090;
+      currentAddress = 'Connaught Place, New Delhi';
+      isLocationOn = true;
+      notifyListeners();
+    }
   }
 
   void setSearchRadius(double radius) {
