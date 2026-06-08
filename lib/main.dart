@@ -3,15 +3,29 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
+import 'screens/customer/customer_home_screen.dart';
 import 'providers/app_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+  final prefs = await SharedPreferences.getInstance();
+  final email = prefs.getString('user_email');
+  final name = prefs.getString('user_name');
+  final photo = prefs.getString('user_photo');
+  final themeIndex = prefs.getInt('theme_mode') ?? 0;
+
   runApp(
     ChangeNotifierProvider(
-      create: (context) => AppState(),
+      create: (context) => AppState(
+        initialEmail: email,
+        initialName: name,
+        initialPhoto: photo,
+        initialThemeMode: ThemeMode.values[themeIndex],
+      ),
       child: const MyApp(),
     ),
   );
@@ -94,7 +108,9 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const LoginScreen(),
+      home: appState.currentGmail != null
+          ? const CustomerHomeScreen()
+          : const LoginScreen(),
     );
   }
 }
