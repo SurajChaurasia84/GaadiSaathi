@@ -74,6 +74,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final chatPartnerName = isOwner ? thread.customerName : thread.ownerName;
     final messages = thread.messages;
 
+    // Mark messages in this thread as read
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      appState.markThreadAsRead(widget.threadId);
+    });
+
     // Trigger auto-scroll when new messages arrive
     _scrollToBottom();
 
