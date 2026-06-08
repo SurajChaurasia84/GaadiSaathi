@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
 import '../../widgets/vehicle_card.dart';
@@ -733,7 +735,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 _buildSettingTile(
                   context: context,
                   icon: Icons.history_rounded,
-                  title: 'Booking History',
+                  title: 'Vehicle History',
                   onTap: () => _showComingSoonSnackBar(context, 'Booking History'),
                 ),
                 _buildDivider(context),
@@ -763,7 +765,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   context: context,
                   icon: Icons.help_outline_rounded,
                   title: 'Help & Support',
-                  onTap: () => _showComingSoonSnackBar(context, 'Help & Support'),
+                  onTap: () => _handleEmailLaunch(context),
                 ),
                 _buildDivider(context),
                 _buildSettingTile(
@@ -777,21 +779,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   context: context,
                   icon: Icons.share_outlined,
                   title: 'Share App',
-                  onTap: () => _showComingSoonSnackBar(context, 'Share App'),
+                  onTap: () => _handleShareApp(context),
                 ),
                 _buildDivider(context),
                 ListTile(
                   leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
                   title: const Text('Log Out', style: TextStyle(color: Colors.redAccent, fontSize: 14)),
                   trailing: const Icon(Icons.chevron_right_rounded, color: Color(0x80FF5252), size: 20),
-                  onTap: () {
-                    appState.logout();
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
-                      (route) => false,
-                    );
-                  },
+                  onTap: () => _showLogoutConfirmDialog(context, appState),
                 ),
               ],
             ),
@@ -830,14 +825,39 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     required BuildContext context,
     required IconData icon,
     required String title,
+    String? subtitle,
     required VoidCallback onTap,
   }) {
     return ListTile(
       leading: Icon(icon, color: const Color(0xFF536DFE)),
       title: Text(title, style: TextStyle(color: context.textColor, fontSize: 14)),
+      subtitle: subtitle != null
+          ? Text(subtitle, style: TextStyle(color: context.textColor54, fontSize: 11))
+          : null,
       trailing: Icon(Icons.chevron_right_rounded, color: context.textColor30, size: 20),
       onTap: onTap,
     );
+  }
+
+  Future<void> _handleEmailLaunch(BuildContext context) async {
+    final Uri emailLaunchUri = Uri(
+      scheme: 'mailto',
+      path: 'dhirendrasuman001@gmail.com',
+      query: 'subject=Support%20Request%20-%20GaadiSaathi',
+    );
+
+    try {
+      await launchUrl(emailLaunchUri);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open email client. Contact: dhirendrasuman001@gmail.com'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildDivider(BuildContext context) {
@@ -856,6 +876,83 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         backgroundColor: const Color(0xFF536DFE),
         duration: const Duration(seconds: 2),
       ),
+    );
+  }
+
+  void _handleShareApp(BuildContext context) {
+    SharePlus.instance.share(
+      ShareParams(
+        text: 'Hey! Check out GaadiSaathi - Your ultimate peer-to-peer vehicle rental partner. '
+            'Rent cars, e-rickshaws, or loading vehicles easily or start earning by listing yours!\n\n'
+            'Download now from Google Play Store:\n'
+            'https://play.google.com/store/apps/details?id=com.gaadisaathi.rent.apps',
+        title: 'Share GaadiSaathi App',
+      ),
+    );
+  }
+
+  void _showLogoutConfirmDialog(BuildContext context, AppState appState) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Theme.of(context).cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Text(
+            'Confirm Log Out',
+            style: TextStyle(
+              color: context.textColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to log out?',
+            style: TextStyle(
+              color: context.textColor54,
+              fontSize: 14,
+            ),
+          ),
+          actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: context.textColor54,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context); // Close dialog
+                appState.logout();
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Log Out',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
