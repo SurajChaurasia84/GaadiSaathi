@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/app_state.dart';
 import '../widgets/theme_selector.dart';
 import 'customer/customer_home_screen.dart';
@@ -12,53 +15,74 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  late TextEditingController _nameController;
-  late TextEditingController _emailController;
   bool _isLoading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(text: 'Rohit Sharma');
-    _emailController = TextEditingController(text: 'rohit.sharma@gmail.com');
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    super.dispose();
-  }
-
-  void _handleGoogleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
-
+  Future<void> _handleGoogleSignIn() async {
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate network delay for Gmail Login authentication
-    await Future.delayed(const Duration(milliseconds: 1200));
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      
+      if (googleUser == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
 
-    if (!mounted) return;
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
 
-    final appState = Provider.of<AppState>(context, listen: false);
-    appState.loginSimulated(
-      _emailController.text.trim(),
-      _nameController.text.trim(),
-    );
+      final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      final User? firebaseUser = userCredential.user;
 
-    setState(() {
-      _isLoading = false;
-    });
+      if (firebaseUser != null) {
+        await FirebaseFirestore.instance.collection('users').doc(firebaseUser.uid).set({
+          'uid': firebaseUser.uid,
+          'name': firebaseUser.displayName ?? '',
+          'email': firebaseUser.email ?? '',
+          'photoUrl': firebaseUser.photoURL ?? '',
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
-      (route) => false,
-    );
+        if (!mounted) return;
+        final appState = Provider.of<AppState>(context, listen: false);
+        appState.loginSimulated(
+          firebaseUser.email ?? '',
+          firebaseUser.displayName ?? '',
+          photoUrl: firebaseUser.photoURL,
+        );
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Google Sign-In failed: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
+
+
 
   void _handleGuestLogin() {
     final appState = Provider.of<AppState>(context, listen: false);
@@ -92,180 +116,109 @@ class _LoginScreenState extends State<LoginScreen> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 20),
-                // Google/Gmail styling indicator
-                Center(
-                  child: Container(
-                    height: 64,
-                    width: 64,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Image.network(
-                        'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
-                        height: 32,
-                        width: 32,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Spacer(flex: 2),
+
+              // App Logo / Icon Header
+              Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.asset(
+                    'assets/icon.png',
+                    height: 120,
+                    width: 120,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Center(
+                child: Text(
+                  'GaadiSaathi',
+                  style: TextStyle(
+                    color: context.textColor,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  'Rent Cars, E-Rickshaws & Loading Vehicles',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: context.textColor54,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+
+              const Spacer(flex: 3),
+
+              if (_isLoading)
+                const Center(
+                  child: Column(
+                    children: [
+                      CircularProgressIndicator(
+                        color: Color(0xFF536DFE),
                       ),
-                    ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Authenticating Google Account...',
+                        style: TextStyle(color: Color(0xFF536DFE), fontSize: 13, fontWeight: FontWeight.bold),
+                      )
+                    ],
                   ),
-                ),
-                const SizedBox(height: 24),
-                Center(
-                  child: Text(
-                    'Gmail Authentication',
-                    style: TextStyle(
-                      color: context.textColor,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Center(
-                  child: Text(
-                    'Sign in to list & book vehicles instantly',
-                    style: TextStyle(
-                      color: context.textColor54,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 40),
-                // Name Input
-                TextFormField(
-                  controller: _nameController,
-                  style: TextStyle(color: context.textColor),
-                  decoration: InputDecoration(
-                    labelText: 'Full Name',
-                    labelStyle: TextStyle(color: context.textColor30),
-                    prefixIcon: Icon(Icons.person_outline_rounded, color: context.textColor30),
-                    filled: true,
-                    fillColor: Theme.of(context).cardColor,
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Colors.transparent),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Color(0xFF536DFE)),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Colors.redAccent),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Colors.redAccent),
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your name';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                // Email Input
-                TextFormField(
-                  controller: _emailController,
-                  style: TextStyle(color: context.textColor),
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Google Email Address',
-                    labelStyle: TextStyle(color: context.textColor30),
-                    prefixIcon: Icon(Icons.email_outlined, color: context.textColor30),
-                    filled: true,
-                    fillColor: Theme.of(context).cardColor,
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Colors.transparent),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Color(0xFF536DFE)),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Colors.redAccent),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Colors.redAccent),
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your Gmail address';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Please enter a valid Gmail address';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 32),
-                // Submit Button
+                )
+              else ...[
+                // Custom Google Sign In Button
                 ElevatedButton(
-                  onPressed: _isLoading ? null : _handleGoogleLogin,
+                  onPressed: _handleGoogleSignIn,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF536DFE),
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: isDark ? Colors.white12 : Colors.black12,
+                    backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    foregroundColor: context.textColor,
+                    surfaceTintColor: Colors.transparent,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: isDark ? const Color(0xFF2E3B4E) : const Color(0xFFE2E8F0),
+                        width: 1.5,
+                      ),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     elevation: 0,
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.network(
-                              'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
-                              height: 18,
-                              width: 18,
-                              color: Colors.white,
-                            ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              'Sign In with Gmail',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/google_logo.png',
+                        height: 20,
+                        width: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Sign In with Google',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: context.textColor,
                         ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
+
+                // Continue as Guest Button
                 OutlinedButton(
-                  onPressed: _isLoading ? null : _handleGuestLogin,
+                  onPressed: _handleGuestLogin,
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(
                       color: Color(0xFF536DFE),
@@ -276,15 +229,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.person_outline_rounded,
                         color: Color(0xFF536DFE),
                       ),
-                      SizedBox(width: 12),
-                      Text(
+                      const SizedBox(width: 12),
+                      const Text(
                         'Continue as Guest',
                         style: TextStyle(
                           fontSize: 16,
@@ -295,20 +248,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                // Help text
-                Center(
-                  child: Text(
-                    'We automatically pre-fill demo details for testing.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: context.textColor30,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
               ],
-            ),
+              const SizedBox(height: 16),
+            ],
           ),
         ),
       ),
