@@ -86,7 +86,22 @@ class InboxScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    trailing: Icon(Icons.arrow_forward_ios_rounded, color: context.textColor30, size: 14),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (appState.hasUnreadMessages(chat.threadId))
+                          Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        Icon(Icons.arrow_forward_ios_rounded, color: context.textColor30, size: 14),
+                      ],
+                    ),
                     onTap: () {
                       Navigator.push(
                         context,
