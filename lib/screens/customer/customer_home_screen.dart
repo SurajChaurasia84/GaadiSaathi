@@ -541,8 +541,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         ),
                         Switch.adaptive(
                           value: _isAvailable,
-                          activeColor: const Color(0xFF10B981),
-                          activeTrackColor: const Color(0xFF10B981).withOpacity(0.3),
+                          activeThumbColor: const Color(0xFF10B981),
+                          activeTrackColor: const Color(0xFF10B981).withValues(alpha: 0.3),
                           onChanged: (value) {
                             setState(() {
                               _isAvailable = value;
@@ -634,7 +634,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Vehicles you register will show here.',
-                      style: TextStyle(color: context.textColor30.withOpacity(0.8), fontSize: 11),
+                      style: TextStyle(color: context.textColor30.withValues(alpha: 0.8), fontSize: 11),
                     ),
                   ],
                 ),
@@ -723,11 +723,23 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             ),
             child: Column(
               children: [
+                _buildSettingTile(
+                  context: context,
+                  icon: Icons.person_outline_rounded,
+                  title: 'Edit Profile',
+                  onTap: () => _showComingSoonSnackBar(context, 'Edit Profile'),
+                ),
+                _buildDivider(context),
+                _buildSettingTile(
+                  context: context,
+                  icon: Icons.history_rounded,
+                  title: 'Booking History',
+                  onTap: () => _showComingSoonSnackBar(context, 'Booking History'),
+                ),
+                _buildDivider(context),
+                // Theme Settings (custom trailing)
                 ListTile(
-                  dense: true,
-                  visualDensity: const VisualDensity(horizontal: 0, vertical: -3),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-                  leading: const Icon(Icons.palette_rounded, color: Color(0xFF536DFE)),
+                  leading: const Icon(Icons.palette_outlined, color: Color(0xFF536DFE)),
                   title: Text('Theme Settings', style: TextStyle(color: context.textColor, fontSize: 14)),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -746,12 +758,32 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   ),
                   onTap: () => _showThemeBottomSheet(context, appState),
                 ),
+                _buildDivider(context),
+                _buildSettingTile(
+                  context: context,
+                  icon: Icons.help_outline_rounded,
+                  title: 'Help & Support',
+                  onTap: () => _showComingSoonSnackBar(context, 'Help & Support'),
+                ),
+                _buildDivider(context),
+                _buildSettingTile(
+                  context: context,
+                  icon: Icons.security_rounded,
+                  title: 'Privacy Policy',
+                  onTap: () => _showComingSoonSnackBar(context, 'Privacy Policy'),
+                ),
+                _buildDivider(context),
+                _buildSettingTile(
+                  context: context,
+                  icon: Icons.share_outlined,
+                  title: 'Share App',
+                  onTap: () => _showComingSoonSnackBar(context, 'Share App'),
+                ),
+                _buildDivider(context),
                 ListTile(
-                  dense: true,
-                  visualDensity: const VisualDensity(horizontal: 0, vertical: -3),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
                   leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-                  title: Text('Log Out', style: TextStyle(color: context.textColor, fontSize: 14)),
+                  title: const Text('Log Out', style: TextStyle(color: Colors.redAccent, fontSize: 14)),
+                  trailing: const Icon(Icons.chevron_right_rounded, color: Color(0x80FF5252), size: 20),
                   onTap: () {
                     appState.logout();
                     Navigator.pushAndRemoveUntil(
@@ -764,8 +796,65 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
+          Center(
+            child: Column(
+              children: [
+                Text(
+                  'GaadiSaathi',
+                  style: TextStyle(
+                    color: context.textColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Version 1.0.0',
+                  style: TextStyle(
+                    color: context.textColor30,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSettingTile({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: const Color(0xFF536DFE)),
+      title: Text(title, style: TextStyle(color: context.textColor, fontSize: 14)),
+      trailing: Icon(Icons.chevron_right_rounded, color: context.textColor30, size: 20),
+      onTap: onTap,
+    );
+  }
+
+  Widget _buildDivider(BuildContext context) {
+    return Divider(
+      height: 1,
+      thickness: 1,
+      color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000),
+    );
+  }
+
+  void _showComingSoonSnackBar(BuildContext context, String feature) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature feature coming soon!'),
+        backgroundColor: const Color(0xFF536DFE),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
