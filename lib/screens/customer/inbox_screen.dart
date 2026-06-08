@@ -39,7 +39,7 @@ class InboxScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     'Select a vehicle from explorer and click Chat to Book.',
-                    style: TextStyle(color: context.textColor30.withOpacity(0.8), fontSize: 12),
+                    style: TextStyle(color: context.textColor30.withValues(alpha: 0.8), fontSize: 12),
                   ),
                 ],
               ),
