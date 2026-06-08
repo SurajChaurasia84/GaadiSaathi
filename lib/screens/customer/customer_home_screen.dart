@@ -84,14 +84,36 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text(
-          _currentIndex == 0
-              ? 'GaadiSaathi'
-              : _currentIndex == 1
-                  ? 'Add Vehicle'
-                  : 'My Profile',
-          style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold),
-        ),
+        title: _currentIndex == 0
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'GaadiSaathi',
+                    style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 12),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          appState.currentAddress,
+                          style: TextStyle(color: context.textColor54, fontSize: 11, fontWeight: FontWeight.normal),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            : Text(
+                _currentIndex == 1 ? 'Add Vehicle' : 'My Profile',
+                style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold),
+              ),
         actions: _currentIndex == 0
             ? [
                 _buildChatAction(context, appState),
@@ -387,6 +409,34 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       prefixIcon: Padding(
                         padding: const EdgeInsets.only(bottom: 24.0),
                         child: Icon(Icons.location_on_rounded, color: context.textColor30, size: 18),
+                      ),
+                      suffixIcon: Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: IconButton(
+                          icon: const Icon(Icons.my_location_rounded, color: Color(0xFF536DFE), size: 20),
+                          tooltip: 'Use Current Location',
+                          onPressed: () async {
+                            ScaffoldMessenger.of(context).clearSnackBars();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                    ),
+                                    SizedBox(width: 12),
+                                    Text('Fetching location...'),
+                                  ],
+                                ),
+                                duration: Duration(milliseconds: 1500),
+                              ),
+                            );
+                            await appState.fetchCurrentLocation();
+                            _addressController.text = appState.currentAddress;
+                          },
+                        ),
                       ),
                       filled: true,
                       fillColor: Theme.of(context).cardColor,
@@ -961,7 +1011,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       alignment: Alignment.center,
       children: [
         IconButton(
-          icon: Icon(Icons.chat_bubble_rounded, color: context.textColor),
+          icon: Icon(Icons.chat_bubble_outline_rounded, color: context.textColor),
           onPressed: () {
             Navigator.push(
               context,
