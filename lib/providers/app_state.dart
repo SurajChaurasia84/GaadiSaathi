@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/vehicle.dart';
 import '../models/chat.dart';
 
@@ -8,6 +11,7 @@ class AppState extends ChangeNotifier {
   String? currentGmail;
   String? currentUserName;
   String? currentUserRole; // 'Owner' or 'Customer'
+  String? currentUserPhotoUrl;
 
   // Location simulation
   bool isLocationOn = false;
@@ -28,13 +32,18 @@ class AppState extends ChangeNotifier {
   // All mock vehicles in system
   List<Vehicle> _allVehicles = [];
 
+  // Firestore Subscriptions
+  StreamSubscription? _vehiclesSubscription;
+  StreamSubscription? _chatsSubscription;
+  final Map<String, StreamSubscription> _messageSubscriptions = {};
+
   AppState() {
-    _initializeMockData();
+    _loadThemeFromPrefs();
+    _syncWithFirestore();
   }
 
-  void _initializeMockData() {
-    // We create mock vehicles scattered around 28.6139, 77.2090
-    _allVehicles = [
+  List<Vehicle> _allMockVehicles() {
+    return [
       Vehicle(
         id: 'v1',
         ownerName: 'Amit Sharma',
@@ -101,43 +110,160 @@ class AppState extends ChangeNotifier {
         longitude: 77.2280,
       ),
     ];
+  }
 
-    // Seed mock chats
-    chatThreads = [
-      ChatThread(
-        threadId: 'v2_cust',
-        customerName: 'Rohit Sharma (Customer)',
-        customerGmail: 'rohit.customer@gmail.com',
-        ownerName: 'Rajesh Kumar',
-        ownerGmail: 'rajesh.rickshaw@gmail.com',
-        vehicleModel: 'Mayuri E-Rickshaw Pro',
-        messages: [
-          ChatMessage(
-            senderId: 'rohit.customer@gmail.com',
-            text: 'Hello Rajesh, is your rickshaw available near Metro Station?',
-            timestamp: DateTime.now().subtract(const Duration(minutes: 30)),
-          ),
-          ChatMessage(
-            senderId: 'rajesh.rickshaw@gmail.com',
-            text: 'Yes! It is available. Where do you need to go?',
-            timestamp: DateTime.now().subtract(const Duration(minutes: 25)),
-          ),
-          ChatMessage(
-            senderId: 'rohit.customer@gmail.com',
-            text: 'Just 4 kms away to Sector 62.',
-            timestamp: DateTime.now().subtract(const Duration(minutes: 20)),
-          ),
-          ChatMessage(
-            senderId: 'rajesh.rickshaw@gmail.com',
-            text: 'Okay, let\'s book it. Rate is ₹8/Km.',
-            timestamp: DateTime.now().subtract(const Duration(minutes: 15)),
-            isBookingProposal: true,
-            bookingStatus: BookingStatus.pending,
-            ratePerKm: 8.0,
-          ),
-        ],
-      )
-    ];
+  void _syncWithFirestore() {
+    // 1. Sync vehicles collection
+    _vehiclesSubscription?.cancel();
+    _vehiclesSubscription = FirebaseFirestore.instance
+        .collection('vehicles')
+        .snapshots()
+        .listen((snapshot) async {
+      if (snapshot.docs.isEmpty) {
+        // Seed initial mock data to Firestore if completely empty
+        for (var vehicle in _allMockVehicles()) {
+          await FirebaseFirestore.instance
+              .collection('vehicles')
+              .doc(vehicle.id)
+              .set(vehicle.toMap());
+        }
+      } else {
+        _allVehicles = snapshot.docs
+            .map((doc) => Vehicle.fromMap(doc.data(), doc.id))
+            .toList();
+
+        // Update owner vehicle if logged in
+        if (currentGmail != null) {
+          try {
+            ownerVehicle = _allVehicles.firstWhere((v) => v.ownerGmail == currentGmail);
+          } catch (_) {
+            ownerVehicle = null;
+          }
+        }
+        notifyListeners();
+      }
+    });
+
+    // Seed initial chat if empty
+    _seedInitialChats();
+
+    // 2. Sync chats collection
+    _chatsSubscription?.cancel();
+    _chatsSubscription = FirebaseFirestore.instance
+        .collection('chats')
+        .snapshots()
+        .listen((snapshot) {
+      final userEmail = currentGmail ?? 'guest.customer@gmail.com';
+
+      // Clean up old subscriptions for deleted threads
+      final currentDocIds = snapshot.docs.map((d) => d.id).toSet();
+      final keysToRemove = <String>[];
+      _messageSubscriptions.forEach((key, sub) {
+        if (!currentDocIds.contains(key)) {
+          sub.cancel();
+          keysToRemove.add(key);
+        }
+      });
+      for (var key in keysToRemove) {
+        _messageSubscriptions.remove(key);
+        chatThreads.removeWhere((t) => t.threadId == key);
+      }
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final threadId = doc.id;
+        final customerGmail = data['customerGmail'] as String? ?? '';
+        final ownerGmail = data['ownerGmail'] as String? ?? '';
+
+        // Filter chat threads related to current logged-in user
+        if (customerGmail != userEmail && ownerGmail != userEmail) {
+          if (_messageSubscriptions.containsKey(threadId)) {
+            _messageSubscriptions[threadId]?.cancel();
+            _messageSubscriptions.remove(threadId);
+            chatThreads.removeWhere((t) => t.threadId == threadId);
+          }
+          continue;
+        }
+
+        _listenToMessagesForThread(threadId, data);
+      }
+      notifyListeners();
+    });
+  }
+
+  void _listenToMessagesForThread(String threadId, Map<String, dynamic> threadData) {
+    if (_messageSubscriptions.containsKey(threadId)) return;
+
+    final subscription = FirebaseFirestore.instance
+        .collection('chats')
+        .doc(threadId)
+        .collection('messages')
+        .orderBy('timestamp', descending: false)
+        .snapshots()
+        .listen((msgSnapshot) {
+      final messages = msgSnapshot.docs.map((doc) => ChatMessage.fromMap(doc.data())).toList();
+      final updatedThread = ChatThread.fromMap(threadData, threadId, messages);
+
+      final index = chatThreads.indexWhere((t) => t.threadId == threadId);
+      if (index >= 0) {
+        chatThreads[index] = updatedThread;
+      } else {
+        chatThreads.add(updatedThread);
+      }
+      notifyListeners();
+    });
+
+    _messageSubscriptions[threadId] = subscription;
+  }
+
+  Future<void> _seedInitialChats() async {
+    final chatSnapshot = await FirebaseFirestore.instance.collection('chats').get();
+    if (chatSnapshot.docs.isEmpty) {
+      final threadId = 'v2_cust';
+      final threadData = {
+        'customerName': 'Rohit Sharma (Customer)',
+        'customerGmail': 'rohit.customer@gmail.com',
+        'ownerName': 'Rajesh Kumar',
+        'ownerGmail': 'rajesh.rickshaw@gmail.com',
+        'vehicleModel': 'Mayuri E-Rickshaw Pro',
+      };
+
+      await FirebaseFirestore.instance.collection('chats').doc(threadId).set(threadData);
+
+      final messages = [
+        ChatMessage(
+          senderId: 'rohit.customer@gmail.com',
+          text: 'Hello Rajesh, is your rickshaw available near Metro Station?',
+          timestamp: DateTime.now().subtract(const Duration(minutes: 30)),
+        ),
+        ChatMessage(
+          senderId: 'rajesh.rickshaw@gmail.com',
+          text: 'Yes! It is available. Where do you need to go?',
+          timestamp: DateTime.now().subtract(const Duration(minutes: 25)),
+        ),
+        ChatMessage(
+          senderId: 'rohit.customer@gmail.com',
+          text: 'Just 4 kms away to Sector 62.',
+          timestamp: DateTime.now().subtract(const Duration(minutes: 20)),
+        ),
+        ChatMessage(
+          senderId: 'rajesh.rickshaw@gmail.com',
+          text: 'Okay, let\'s book it. Rate is ₹8/Km.',
+          timestamp: DateTime.now().subtract(const Duration(minutes: 15)),
+          isBookingProposal: true,
+          bookingStatus: BookingStatus.pending,
+          ratePerKm: 8.0,
+        ),
+      ];
+
+      for (var msg in messages) {
+        await FirebaseFirestore.instance
+            .collection('chats')
+            .doc(threadId)
+            .collection('messages')
+            .add(msg.toMap());
+      }
+    }
   }
 
   // Calculate distance between two lat/lons in Kilometers using Haversine
@@ -154,19 +280,15 @@ class AppState extends ChangeNotifier {
     if (!isLocationOn) return [];
 
     return _allVehicles.where((vehicle) {
-      // 1. Service must be ON (or it is the current owner viewing their own app, but for customer it must be ON)
       if (!vehicle.isServiceOn) return false;
 
-      // 2. Distance check: must be <= searchRadiusKm
       double distance = getDistanceFromUser(vehicle.latitude, vehicle.longitude);
       if (distance > searchRadiusKm) return false;
 
-      // 3. Category Filter
       if (selectedCategoryFilter != null && vehicle.type != selectedCategoryFilter) {
         return false;
       }
 
-      // 4. Search Query filter (model or owner name)
       if (searchQuery.isNotEmpty) {
         final query = searchQuery.toLowerCase();
         final modelMatch = vehicle.model.toLowerCase().contains(query);
@@ -185,16 +307,25 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void loginSimulated(String gmail, String name) {
+  void loginSimulated(String gmail, String name, {String? photoUrl}) {
     currentGmail = gmail;
     currentUserName = name;
+    currentUserPhotoUrl = photoUrl;
 
-    // Check if there is an existing vehicle for this user
     try {
       ownerVehicle = _allVehicles.firstWhere((v) => v.ownerGmail == gmail);
     } catch (_) {
       ownerVehicle = null;
     }
+
+    // Reset subscriptions for the new user
+    for (var sub in _messageSubscriptions.values) {
+      sub.cancel();
+    }
+    _messageSubscriptions.clear();
+    chatThreads.clear();
+
+    _syncWithFirestore();
     notifyListeners();
   }
 
@@ -202,7 +333,13 @@ class AppState extends ChangeNotifier {
     currentGmail = null;
     currentUserName = null;
     currentUserRole = null;
+    currentUserPhotoUrl = null;
     ownerVehicle = null;
+    chatThreads.clear();
+    for (var sub in _messageSubscriptions.values) {
+      sub.cancel();
+    }
+    _messageSubscriptions.clear();
     notifyListeners();
   }
 
@@ -210,7 +347,6 @@ class AppState extends ChangeNotifier {
   void triggerLocationOn() async {
     isLocationOn = false;
     notifyListeners();
-    // Simulate minor delay for GPS sensor lookup
     await Future.delayed(const Duration(milliseconds: 800));
     isLocationOn = true;
     notifyListeners();
@@ -238,7 +374,7 @@ class AppState extends ChangeNotifier {
     required double ratePerKm,
     required String insidePhotoUrl,
     required String outsidePhotoUrl,
-  }) {
+  }) async {
     if (currentGmail == null) return;
 
     final newVehicle = Vehicle(
@@ -251,34 +387,31 @@ class AppState extends ChangeNotifier {
       outsidePhotoUrl: outsidePhotoUrl,
       ratePerKm: ratePerKm,
       isServiceOn: true,
-      latitude: customerLatitude + 0.005, // simulated very close to customer
+      latitude: customerLatitude + 0.005,
       longitude: customerLongitude + 0.005,
     );
 
     ownerVehicle = newVehicle;
-    // Add or update in general list
-    final existingIndex = _allVehicles.indexWhere((v) => v.ownerGmail == currentGmail);
-    if (existingIndex >= 0) {
-      _allVehicles[existingIndex] = newVehicle;
-    } else {
-      _allVehicles.add(newVehicle);
-    }
-    notifyListeners();
+    await FirebaseFirestore.instance
+        .collection('vehicles')
+        .doc(newVehicle.id)
+        .set(newVehicle.toMap());
   }
 
-  void addCustomVehicle(Vehicle vehicle) {
-    _allVehicles.add(vehicle);
-    notifyListeners();
+  void addCustomVehicle(Vehicle vehicle) async {
+    await FirebaseFirestore.instance
+        .collection('vehicles')
+        .doc(vehicle.id)
+        .set(vehicle.toMap());
   }
 
-  void toggleServiceStatus(bool isOn) {
+  void toggleServiceStatus(bool isOn) async {
     if (ownerVehicle != null) {
       ownerVehicle = ownerVehicle!.copyWith(isServiceOn: isOn);
-      final index = _allVehicles.indexWhere((v) => v.id == ownerVehicle!.id);
-      if (index >= 0) {
-        _allVehicles[index] = ownerVehicle!;
-      }
-      notifyListeners();
+      await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(ownerVehicle!.id)
+          .update({'isServiceOn': isOn});
     }
   }
 
@@ -304,47 +437,63 @@ class AppState extends ChangeNotifier {
       ownerName: vehicle.ownerName,
       ownerGmail: vehicle.ownerGmail,
       vehicleModel: vehicle.model,
-      messages: [
-        ChatMessage(
-          senderId: vehicle.ownerGmail,
-          text: 'Hi there! I am the owner of ${vehicle.model}. Do you want to book my service? The rate is ₹${vehicle.ratePerKm.toStringAsFixed(1)}/Km.',
-          timestamp: DateTime.now(),
-        ),
-      ],
+      messages: [],
     );
 
-    chatThreads.add(newThread);
-    notifyListeners();
+    FirebaseFirestore.instance.collection('chats').doc(threadId).set({
+      'customerName': newThread.customerName,
+      'customerGmail': newThread.customerGmail,
+      'ownerName': newThread.ownerName,
+      'ownerGmail': newThread.ownerGmail,
+      'vehicleModel': newThread.vehicleModel,
+    });
+
+    final firstMsg = ChatMessage(
+      senderId: vehicle.ownerGmail,
+      text: 'Hi there! I am the owner of ${vehicle.model}. Do you want to book my service? The rate is ₹${vehicle.ratePerKm.toStringAsFixed(1)}/Km.',
+      timestamp: DateTime.now(),
+    );
+
+    FirebaseFirestore.instance
+        .collection('chats')
+        .doc(threadId)
+        .collection('messages')
+        .add(firstMsg.toMap());
+
     return newThread;
   }
 
-  void sendChatMessage(String threadId, String text, {bool isBookingProposal = false, double? ratePerKm}) {
+  void sendChatMessage(String threadId, String text, {bool isBookingProposal = false, double? ratePerKm}) async {
+    final msg = ChatMessage(
+      senderId: currentGmail ?? 'unknown@gmail.com',
+      text: text,
+      timestamp: DateTime.now(),
+      isBookingProposal: isBookingProposal,
+      bookingStatus: isBookingProposal ? BookingStatus.pending : null,
+      ratePerKm: ratePerKm,
+    );
+
+    await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(threadId)
+        .collection('messages')
+        .add(msg.toMap());
+
+    // Auto-respond for simulation
     final index = chatThreads.indexWhere((t) => t.threadId == threadId);
     if (index >= 0) {
-      final updatedMessages = List<ChatMessage>.from(chatThreads[index].messages)
-        ..add(ChatMessage(
-          senderId: currentGmail ?? 'unknown@gmail.com',
-          text: text,
-          timestamp: DateTime.now(),
-          isBookingProposal: isBookingProposal,
-          bookingStatus: isBookingProposal ? BookingStatus.pending : null,
-          ratePerKm: ratePerKm,
-        ));
-
-      chatThreads[index] = chatThreads[index].copyWith(messages: updatedMessages);
-      notifyListeners();
-
-      // Simple simulator replies after 1.5 seconds if sent by customer, to make the chat feel responsive
-      if (currentGmail != chatThreads[index].ownerGmail && !isBookingProposal) {
+      final thread = chatThreads[index];
+      if (currentGmail == thread.customerGmail && !isBookingProposal) {
         _simulateOwnerResponse(threadId, text);
       }
     }
   }
 
   void _simulateOwnerResponse(String threadId, String userText) async {
-    await Future.delayed(const Duration(seconds: 1500));
+    await Future.delayed(const Duration(milliseconds: 1500));
     final index = chatThreads.indexWhere((t) => t.threadId == threadId);
     if (index >= 0) {
+      final thread = chatThreads[index];
       String response = 'Okay, I understand. Let\'s coordinate!';
       final textLower = userText.toLowerCase();
       if (textLower.contains('available') || textLower.contains('free')) {
@@ -354,38 +503,75 @@ class AppState extends ChangeNotifier {
         response = 'The rate is fixed at ₹${currentRate.toStringAsFixed(1)}/Km as per the requirements, but I can offer smooth transport!';
       }
 
-      final updatedMessages = List<ChatMessage>.from(chatThreads[index].messages)
-        ..add(ChatMessage(
-          senderId: chatThreads[index].ownerGmail,
-          text: response,
-          timestamp: DateTime.now(),
-        ));
+      final msg = ChatMessage(
+        senderId: thread.ownerGmail,
+        text: response,
+        timestamp: DateTime.now(),
+      );
 
-      chatThreads[index] = chatThreads[index].copyWith(messages: updatedMessages);
-      notifyListeners();
+      await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(threadId)
+          .collection('messages')
+          .add(msg.toMap());
     }
   }
 
-  void updateBookingStatus(String threadId, int messageIndex, BookingStatus status) {
-    final threadIdx = chatThreads.indexWhere((t) => t.threadId == threadId);
-    if (threadIdx >= 0) {
-      final thread = chatThreads[threadIdx];
-      final updatedMessages = List<ChatMessage>.from(thread.messages);
-      final msg = updatedMessages[messageIndex];
+  void updateBookingStatus(String threadId, int messageIndex, BookingStatus status) async {
+    final index = chatThreads.indexWhere((t) => t.threadId == threadId);
+    if (index >= 0) {
+      final thread = chatThreads[index];
+      final targetMsg = thread.messages[messageIndex];
 
-      updatedMessages[messageIndex] = msg.copyWith(bookingStatus: status);
-      chatThreads[threadIdx] = thread.copyWith(messages: updatedMessages);
-      notifyListeners();
+      final msgQuery = await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(threadId)
+          .collection('messages')
+          .where('senderId', isEqualTo: targetMsg.senderId)
+          .where('text', isEqualTo: targetMsg.text)
+          .get();
+
+      if (msgQuery.docs.isNotEmpty) {
+        await msgQuery.docs.first.reference.update({
+          'bookingStatus': status.name,
+        });
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    _vehiclesSubscription?.cancel();
+    _chatsSubscription?.cancel();
+    for (var sub in _messageSubscriptions.values) {
+      sub.cancel();
+    }
+    _messageSubscriptions.clear();
+    super.dispose();
   }
 
   // Theme state settings
   ThemeMode _themeMode = ThemeMode.system;
   ThemeMode get themeMode => _themeMode;
 
-  void setThemeMode(ThemeMode mode) {
+  Future<void> _loadThemeFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final themeIndex = prefs.getInt('theme_mode') ?? 0;
+      if (themeIndex >= 0 && themeIndex < ThemeMode.values.length) {
+        _themeMode = ThemeMode.values[themeIndex];
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('theme_mode', mode.index);
+    } catch (_) {}
   }
 }
 
