@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,12 +23,13 @@ class AppState extends ChangeNotifier {
 
   // Location state
   bool isLocationOn = false;
+  bool isFetchingLocation = true;
   double customerLatitude = 0.0;
   double customerLongitude = 0.0;
   double searchRadiusKm = 3.0; // Default requirement: 3.0 Km
   String searchQuery = '';
   VehicleType? selectedCategoryFilter;
-  String currentAddress = 'Location Unavailable';
+  String currentAddress = 'Fetching...';
 
   // Owner state
   Vehicle? ownerVehicle;
@@ -331,6 +334,13 @@ class AppState extends ChangeNotifier {
     }).toList();
   }
 
+  // All vehicles registered by the current logged-in user
+  List<Vehicle> get myVehicles {
+    if (currentGmail == null) return [];
+    return _allVehicles.where((v) => v.ownerGmail == currentGmail).toList();
+  }
+
+
   // Actions
   void setRole(String role) {
     currentUserRole = role;
@@ -405,6 +415,10 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> fetchCurrentLocation() async {
+    isFetchingLocation = true;
+    currentAddress = 'Fetching...';
+    notifyListeners();
+
     bool serviceEnabled;
     LocationPermission permission;
 
@@ -413,7 +427,6 @@ class AppState extends ChangeNotifier {
       if (!serviceEnabled) {
         currentAddress = 'Location Unavailable';
         isLocationOn = true;
-        notifyListeners();
         return;
       }
 
@@ -423,7 +436,6 @@ class AppState extends ChangeNotifier {
         if (permission == LocationPermission.denied) {
           currentAddress = 'Location Unavailable';
           isLocationOn = true;
-          notifyListeners();
           return;
         }
       }
@@ -431,7 +443,6 @@ class AppState extends ChangeNotifier {
       if (permission == LocationPermission.deniedForever) {
         currentAddress = 'Location Unavailable';
         isLocationOn = true;
-        notifyListeners();
         return;
       }
 
@@ -464,13 +475,14 @@ class AppState extends ChangeNotifier {
       } else {
         currentAddress = 'Location Detected';
       }
-      notifyListeners();
     } catch (e) {
       // Graceful fallback for simulator/emulator/errors
       customerLatitude = 0.0;
       customerLongitude = 0.0;
       currentAddress = 'Location Unavailable';
       isLocationOn = true;
+    } finally {
+      isFetchingLocation = false;
       notifyListeners();
     }
   }
@@ -637,6 +649,29 @@ class AppState extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('theme_mode', mode.index);
     } catch (_) {}
+  }
+
+  // Direct unsigned Cloudinary upload
+  Future<String?> uploadToCloudinary(String filePath) async {
+    final url = Uri.parse('https://api.cloudinary.com/v1_1/dx0rpdnx5/image/upload');
+    try {
+      final request = http.MultipartRequest('POST', url)
+        ..fields['upload_preset'] = 'vehicles'
+        ..files.add(await http.MultipartFile.fromPath('file', filePath));
+        
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        final responseData = await response.stream.bytesToString();
+        final decodedData = json.decode(responseData);
+        return decodedData['secure_url'] as String?;
+      } else {
+        debugPrint('Cloudinary upload failed with status: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Error uploading to Cloudinary: $e');
+      return null;
+    }
   }
 }
 
