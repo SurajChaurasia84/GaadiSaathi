@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/vehicle.dart';
@@ -54,20 +55,10 @@ class VehicleCard extends StatelessWidget {
             // Vehicle Image Header
             Stack(
               children: [
-                Image.network(
+                _buildVehicleImage(
                   vehicle.outsidePhotoUrl,
                   height: 150,
                   width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      height: 150,
-                      color: const Color(0xFF0F172A),
-                      child: const Center(
-                        child: Icon(Icons.image_not_supported, color: Colors.grey, size: 40),
-                      ),
-                    );
-                  },
                 ),
                 // Gradient Overlay
                 Positioned.fill(
@@ -257,6 +248,36 @@ class VehicleCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildVehicleImage(String url, {required double height, double? width, BoxFit fit = BoxFit.cover}) {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return Image.network(
+        url,
+        height: height,
+        width: width,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => _buildErrorImage(height),
+      );
+    } else {
+      return Image.file(
+        File(url),
+        height: height,
+        width: width,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => _buildErrorImage(height),
+      );
+    }
+  }
+
+  Widget _buildErrorImage(double height) {
+    return Container(
+      height: height,
+      color: const Color(0xFF0F172A),
+      child: const Center(
+        child: Icon(Icons.image_not_supported, color: Colors.grey, size: 40),
       ),
     );
   }
