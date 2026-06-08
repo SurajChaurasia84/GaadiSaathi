@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/vehicle.dart';
@@ -59,11 +60,10 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.network(
-                    _showingOutside ? widget.vehicle.outsidePhotoUrl : widget.vehicle.insidePhotoUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(color: Colors.black26),
-                  ),
+                   _buildVehicleImage(
+                     _showingOutside ? widget.vehicle.outsidePhotoUrl : widget.vehicle.insidePhotoUrl,
+                     fit: BoxFit.cover,
+                   ),
                   // Dark shadow overlay at bottom
                   Container(
                     decoration: BoxDecoration(
@@ -413,6 +413,36 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildVehicleImage(String url, {required BoxFit fit, double? height, double? width}) {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return Image.network(
+        url,
+        height: height,
+        width: width,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => _buildErrorImage(height ?? 280),
+      );
+    } else {
+      return Image.file(
+        File(url),
+        height: height,
+        width: width,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => _buildErrorImage(height ?? 280),
+      );
+    }
+  }
+
+  Widget _buildErrorImage(double height) {
+    return Container(
+      height: height,
+      color: const Color(0xFF0F172A),
+      child: const Center(
+        child: Icon(Icons.image_not_supported, color: Colors.grey, size: 40),
       ),
     );
   }
