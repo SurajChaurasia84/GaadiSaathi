@@ -185,7 +185,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Text(
                 '${msg.timestamp.hour.toString().padLeft(2, '0')}:${msg.timestamp.minute.toString().padLeft(2, '0')}',
                 style: TextStyle(
-                  color: isMe ? Colors.white.withOpacity(0.6) : context.textColor54,
+                  color: isMe ? Colors.white.withValues(alpha: 0.6) : context.textColor54,
                   fontSize: 9,
                 ),
               ),
@@ -232,7 +232,7 @@ class _ChatScreenState extends State<ChatScreen> {
         border: Border.all(color: const Color(0x33536DFE), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF536DFE).withOpacity(0.1),
+            color: const Color(0xFF536DFE).withValues(alpha: 0.1),
             blurRadius: 10,
             spreadRadius: 1,
           )
@@ -288,9 +288,9 @@ class _ChatScreenState extends State<ChatScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
+                  color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: statusColor.withOpacity(0.5)),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.5)),
                 ),
                 child: Text(
                   statusText.toUpperCase(),
@@ -353,7 +353,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withOpacity(0.1),
+                color: const Color(0xFF10B981).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Row(
@@ -372,7 +372,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFFEF4444).withOpacity(0.1),
+                color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Row(
