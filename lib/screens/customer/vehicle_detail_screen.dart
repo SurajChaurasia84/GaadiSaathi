@@ -486,74 +486,101 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   ),
                   const SizedBox(height: 40),
 
-                  // Chat to Book Action Button & Call Button Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            final thread = appState.getOrCreateThread(widget.vehicle);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ChatScreen(threadId: thread.threadId),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF536DFE),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            elevation: 5,
-                            shadowColor: const Color(0xFF536DFE).withValues(alpha: 0.3),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.chat_bubble_outline_rounded),
-                              SizedBox(width: 10),
-                              Text(
-                                'Chat to Book',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                  // Chat to Book Action Button & Call Button Row or Self warning
+                  if (widget.vehicle.ownerGmail == appState.currentGmail) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.orangeAccent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.3)),
                       ),
-                      if (widget.vehicle.phoneNumber != null && widget.vehicle.phoneNumber!.isNotEmpty) ...[
-                        const SizedBox(width: 12),
-                        GestureDetector(
-                          onTap: () => _showCallWarningDialog(context),
-                          child: Container(
-                            width: 54,
-                            height: 54,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF10B981).withValues(alpha: 0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline_rounded, color: Colors.orangeAccent, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Self-messaging/calling is not allowed.',
+                              style: TextStyle(
+                                color: context.textColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              final thread = appState.getOrCreateThread(widget.vehicle);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ChatScreen(threadId: thread.threadId),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF536DFE),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              elevation: 5,
+                              shadowColor: const Color(0xFF536DFE).withValues(alpha: 0.3),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.chat_bubble_outline_rounded),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Chat to Book',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
-                            child: const Icon(
-                              Icons.phone_rounded,
-                              color: Colors.white,
-                              size: 24,
-                            ),
                           ),
                         ),
+                        if (widget.vehicle.phoneNumber != null && widget.vehicle.phoneNumber!.isNotEmpty) ...[
+                          const SizedBox(width: 12),
+                          GestureDetector(
+                            onTap: () => _showCallWarningDialog(context),
+                            child: Container(
+                              width: 54,
+                              height: 54,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.phone_rounded,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
+                    ),
+                  ],
                   const SizedBox(height: 30),
                 ],
               ),
