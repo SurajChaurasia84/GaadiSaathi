@@ -36,23 +36,146 @@ class VehicleHistoryScreen extends StatelessWidget {
           : ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               itemCount: vehicles.length,
-              itemBuilder: (context, index) {
+              itemBuilder: (ctx, index) {
+                final vehicle = vehicles[index];
                 return GestureDetector(
                   onTap: () {
                     Navigator.push(
-                      context,
+                      ctx,
                       MaterialPageRoute(
                         builder: (_) => AddEditVehicleScreen(
-                          initialVehicle: vehicles[index],
+                          initialVehicle: vehicle,
                         ),
                       ),
                     );
                   },
-                  child: _buildVehicleCard(context, vehicles[index]),
+                  onLongPress: () {
+                    _showDeleteConfirmDialog(context, vehicle);
+                  },
+                  child: _buildVehicleCard(ctx, vehicle),
                 );
               },
             ),
     );
+  }
+
+  void _showDeleteConfirmDialog(BuildContext context, Vehicle vehicle) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.delete_forever_rounded, color: Colors.redAccent),
+              const SizedBox(width: 8),
+              Text(
+                'Delete Vehicle?',
+                style: TextStyle(
+                  color: dialogContext.textColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to delete ${vehicle.model}? This will permanently delete the vehicle from Firestore and its photos from Cloudinary.',
+            style: TextStyle(color: dialogContext.textColor70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Close confirm dialog
+                _deleteVehicleWithLoading(context, vehicle);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteVehicleWithLoading(BuildContext context, Vehicle vehicle) async {
+    // Show non-dismissible loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext loadingContext) {
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            content: Row(
+              children: [
+                const CircularProgressIndicator(
+                  color: Color(0xFF536DFE),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Text(
+                    'Deleting vehicle...',
+                    style: TextStyle(
+                      color: loadingContext.textColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    final appState = Provider.of<AppState>(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      await appState.deleteVehicle(vehicle);
+
+      // Close the loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('${vehicle.model} deleted successfully!'),
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+    } catch (e) {
+      // Close the loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete vehicle: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
 
   Widget _buildEmptyState(BuildContext context) {
@@ -234,7 +357,7 @@ class VehicleHistoryScreen extends StatelessWidget {
         width: w,
         height: h,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _imageError(w, h),
+        errorBuilder: (context, error, stackTrace) => _imageError(w, h),
       );
     }
 
@@ -245,7 +368,7 @@ class VehicleHistoryScreen extends StatelessWidget {
         width: w,
         height: h,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _imageError(w, h),
+        errorBuilder: (context, error, stackTrace) => _imageError(w, h),
       );
     }
 
