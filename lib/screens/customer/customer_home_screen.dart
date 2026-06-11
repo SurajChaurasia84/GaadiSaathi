@@ -1136,7 +1136,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                   context: context,
                   icon: Icons.security_rounded,
                   title: 'Privacy Policy',
-                  onTap: () => _showComingSoonSnackBar(context, 'Privacy Policy'),
+                  onTap: () => _handlePrivacyPolicyLaunch(context),
                 ),
                 _buildDivider(context),
                 _buildSettingTile(
@@ -1224,6 +1224,22 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     }
   }
 
+  Future<void> _handlePrivacyPolicyLaunch(BuildContext context) async {
+    final Uri privacyUri = Uri.parse('https://surajchaurasia84.github.io/GaadiSaathi/');
+    try {
+      await launchUrl(privacyUri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open privacy policy link.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildDivider(BuildContext context) {
     return Divider(
       height: 1,
@@ -1232,16 +1248,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     );
   }
 
-  void _showComingSoonSnackBar(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature feature coming soon!'),
-        backgroundColor: const Color(0xFF536DFE),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
 
   void _handleShareApp(BuildContext context) {
     SharePlus.instance.share(
