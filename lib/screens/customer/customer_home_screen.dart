@@ -494,6 +494,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                   // Owner Name Input
                   TextFormField(
                     controller: _ownerNameController,
+                    textCapitalization: TextCapitalization.words,
                     style: TextStyle(color: context.textColor, fontSize: 14),
                     decoration: InputDecoration(
                       labelText: 'Owner Name',
@@ -543,6 +544,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     controller: _addressController,
                     maxLines: 1,
                     style: TextStyle(color: context.textColor, fontSize: 14),
+                    textCapitalization: TextCapitalization.words,
                     decoration: InputDecoration(
                       labelText: 'Address',
                       labelStyle: TextStyle(color: context.textColor30),
@@ -643,6 +645,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                   TextFormField(
                     controller: _modelNameController,
                     style: TextStyle(color: context.textColor, fontSize: 14),
+                    textCapitalization: TextCapitalization.words,
                     decoration: InputDecoration(
                       labelText: 'Vehicle Model Name',
                       labelStyle: TextStyle(color: context.textColor30),
@@ -851,7 +854,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                               ),
                               SizedBox(width: 12),
-                              Text('Uploading images to Cloudinary...'),
+                              Text('Adding Vehicle...'),
                             ],
                           ),
                           duration: Duration(days: 1),
