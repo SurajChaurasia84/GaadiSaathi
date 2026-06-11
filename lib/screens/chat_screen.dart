@@ -139,11 +139,27 @@ class _ChatScreenState extends State<ChatScreen> {
                   final msg = messages[index];
                   final isMe = msg.senderId == appState.currentGmail;
 
+                  final bool showDateHeader = index == 0 ||
+                      !_isSameDay(messages[index - 1].timestamp, msg.timestamp);
+
+                  Widget bubble;
                   if (msg.isBookingProposal) {
-                    return _buildBookingProposalCard(context, appState, msg, index, isOwner);
+                    bubble = _buildBookingProposalCard(context, appState, msg, index, isOwner);
+                  } else {
+                    bubble = _buildNormalMessageBubble(msg, isMe);
                   }
 
-                  return _buildNormalMessageBubble(msg, isMe);
+                  if (showDateHeader) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildDateHeaderWidget(msg.timestamp),
+                        bubble,
+                      ],
+                    );
+                  }
+
+                  return bubble;
                 },
               ),
             ),
@@ -154,6 +170,52 @@ class _ChatScreenState extends State<ChatScreen> {
             // Text Input Box
             _buildTextInputPanel(),
           ],
+        ),
+      ),
+    );
+  }
+
+  bool _isSameDay(DateTime d1, DateTime d2) {
+    return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
+  }
+
+  String _formatDateHeader(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final msgDate = DateTime(date.year, date.month, date.day);
+
+    if (msgDate == today) {
+      return 'Today';
+    } else if (msgDate == yesterday) {
+      return 'Yesterday';
+    } else {
+      final months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return '${date.day} ${months[date.month - 1]} ${date.year}';
+    }
+  }
+
+  Widget _buildDateHeaderWidget(DateTime date) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: context.isDarkMode
+              ? const Color(0x1AFFFFFF)
+              : const Color(0x0F000000),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          _formatDateHeader(date),
+          style: TextStyle(
+            color: context.textColor54,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
