@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
+import 'add_edit_vehicle_screen.dart';
 
 class VehicleHistoryScreen extends StatelessWidget {
   const VehicleHistoryScreen({super.key});
@@ -36,7 +37,19 @@ class VehicleHistoryScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               itemCount: vehicles.length,
               itemBuilder: (context, index) {
-                return _buildVehicleCard(context, vehicles[index]);
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AddEditVehicleScreen(
+                          initialVehicle: vehicles[index],
+                        ),
+                      ),
+                    );
+                  },
+                  child: _buildVehicleCard(context, vehicles[index]),
+                );
               },
             ),
     );
@@ -72,10 +85,7 @@ class VehicleHistoryScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Vehicles you add will appear here.',
-            style: TextStyle(
-              color: context.textColor54,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: context.textColor54, fontSize: 13),
           ),
         ],
       ),
@@ -84,6 +94,7 @@ class VehicleHistoryScreen extends StatelessWidget {
 
   Widget _buildVehicleCard(BuildContext context, Vehicle vehicle) {
     final isActive = vehicle.isServiceOn;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
@@ -97,7 +108,8 @@ class VehicleHistoryScreen extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: context.isDarkMode ? 0.15 : 0.05),
+            color: Colors.black
+                .withValues(alpha: context.isDarkMode ? 0.15 : 0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -106,80 +118,33 @@ class VehicleHistoryScreen extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left - Vehicle Image
-            SizedBox(
-              width: 110,
-              child: _buildVehicleImage(vehicle.outsidePhotoUrl),
-            ),
+            // ── Left: Image with fixed explicit dimensions ──────────────
+            _buildVehicleImage(vehicle.outsidePhotoUrl),
 
-            // Right - Details
+            // ── Right: Details ──────────────────────────────────────────
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Type badge + Status
+                    // Type badge + Status row
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF536DFE).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            vehicle.type.displayName,
-                            style: const TextStyle(
-                              color: Color(0xFF536DFE),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                        _badge(
+                          vehicle.type.displayName,
+                          const Color(0xFF536DFE),
                         ),
                         const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? const Color(0xFF10B981).withValues(alpha: 0.12)
-                                : Colors.grey.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 5,
-                                height: 5,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isActive
-                                      ? const Color(0xFF10B981)
-                                      : Colors.grey,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                isActive ? 'Active' : 'Inactive',
-                                style: TextStyle(
-                                  color: isActive
-                                      ? const Color(0xFF10B981)
-                                      : Colors.grey,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        _statusBadge(isActive),
                       ],
                     ),
                     const SizedBox(height: 8),
 
-                    // Vehicle Model Name
+                    // Model name
                     Text(
                       vehicle.model,
                       style: TextStyle(
@@ -209,7 +174,7 @@ class VehicleHistoryScreen extends StatelessWidget {
                       ],
                     ),
 
-                    // Address (if present)
+                    // Address
                     if (vehicle.address != null &&
                         vehicle.address!.isNotEmpty) ...[
                       const SizedBox(height: 4),
@@ -222,9 +187,7 @@ class VehicleHistoryScreen extends StatelessWidget {
                             child: Text(
                               vehicle.address!,
                               style: TextStyle(
-                                color: context.textColor30,
-                                fontSize: 11,
-                              ),
+                                  color: context.textColor30, fontSize: 11),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -233,7 +196,7 @@ class VehicleHistoryScreen extends StatelessWidget {
                       ),
                     ],
 
-                    // Phone (if present)
+                    // Phone
                     if (vehicle.phoneNumber != null &&
                         vehicle.phoneNumber!.isNotEmpty) ...[
                       const SizedBox(height: 3),
@@ -245,9 +208,7 @@ class VehicleHistoryScreen extends StatelessWidget {
                           Text(
                             vehicle.phoneNumber!,
                             style: TextStyle(
-                              color: context.textColor30,
-                              fontSize: 11,
-                            ),
+                                color: context.textColor30, fontSize: 11),
                           ),
                         ],
                       ),
@@ -262,32 +223,85 @@ class VehicleHistoryScreen extends StatelessWidget {
     );
   }
 
+  // Image always has explicit width + height — no constraints problem
   Widget _buildVehicleImage(String url) {
+    const double w = 110;
+    const double h = 120;
+
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return Image.network(
         url,
+        width: w,
+        height: h,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _buildImageError(),
+        errorBuilder: (_, __, ___) => _imageError(w, h),
       );
-    } else {
-      final file = File(url);
-      if (file.existsSync()) {
-        return Image.file(
-          file,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildImageError(),
-        );
-      }
-      return _buildImageError();
     }
+
+    final file = File(url);
+    if (file.existsSync()) {
+      return Image.file(
+        file,
+        width: w,
+        height: h,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _imageError(w, h),
+      );
+    }
+
+    return _imageError(w, h);
   }
 
-  Widget _buildImageError() {
+  Widget _imageError(double w, double h) {
     return Container(
+      width: w,
+      height: h,
       color: const Color(0xFF1E293B),
       child: const Center(
-        child: Icon(Icons.directions_car_outlined,
-            color: Colors.white24, size: 32),
+        child:
+            Icon(Icons.directions_car_outlined, color: Colors.white24, size: 32),
+      ),
+    );
+  }
+
+  Widget _badge(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+            color: color, fontSize: 10, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _statusBadge(bool isActive) {
+    final color = isActive ? const Color(0xFF10B981) : Colors.grey;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isActive ? 'Active' : 'Inactive',
+            style: TextStyle(
+                color: color, fontSize: 10, fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
     );
   }
