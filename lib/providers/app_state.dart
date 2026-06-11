@@ -774,6 +774,88 @@ class AppState extends ChangeNotifier {
       debugPrint('sendNotificationViaVercel error: $e');
     }
   }
+
+  // Parse Cloudinary public ID from imageUrl
+  String? _getCloudinaryPublicId(String url) {
+    if (!url.contains('res.cloudinary.com')) return null;
+    try {
+      final uri = Uri.parse(url);
+      final pathSegments = uri.pathSegments;
+      final uploadIndex = pathSegments.indexOf('upload');
+      if (uploadIndex == -1 || uploadIndex >= pathSegments.length - 1) return null;
+
+      var subSegments = pathSegments.sublist(uploadIndex + 1);
+      if (subSegments.isEmpty) return null;
+
+      if (subSegments.first.startsWith('v') && RegExp(r'^v\d+$').hasMatch(subSegments.first)) {
+        subSegments = subSegments.sublist(1);
+      }
+
+      if (subSegments.isEmpty) return null;
+
+      final lastSegment = subSegments.last;
+      final dotIndex = lastSegment.lastIndexOf('.');
+      final nameWithoutExt = dotIndex == -1 ? lastSegment : lastSegment.substring(0, dotIndex);
+
+      return [...subSegments.sublist(0, subSegments.length - 1), nameWithoutExt].join('/');
+    } catch (e) {
+      debugPrint('Error parsing Cloudinary public ID: $e');
+      return null;
+    }
+  }
+
+  // Deletes an image from Cloudinary using Vercel backend proxy
+  Future<bool> deleteImageFromCloudinary(String imageUrl) async {
+    final publicId = _getCloudinaryPublicId(imageUrl);
+    if (publicId == null) {
+      debugPrint('Not a Cloudinary URL or public ID couldn\'t be parsed: $imageUrl');
+      return false;
+    }
+
+    try {
+      final url = Uri.parse('$_kVercelBaseUrl/api/delete-image');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'public_id': publicId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          debugPrint('Cloudinary image deleted successfully: $publicId');
+          return true;
+        }
+      }
+      debugPrint('Cloudinary image deletion failed for $publicId: ${response.body}');
+      return false;
+    } catch (e) {
+      debugPrint('Error deleting image from Cloudinary: $e');
+      return false;
+    }
+  }
+
+  // Deletes vehicle document from Firestore and deletes its related images from Cloudinary
+  Future<void> deleteVehicle(Vehicle vehicle) async {
+    final futures = <Future>[];
+
+    if (vehicle.insidePhotoUrl.isNotEmpty && vehicle.insidePhotoUrl.contains('res.cloudinary.com')) {
+      futures.add(deleteImageFromCloudinary(vehicle.insidePhotoUrl));
+    }
+    if (vehicle.outsidePhotoUrl.isNotEmpty && vehicle.outsidePhotoUrl.contains('res.cloudinary.com')) {
+      futures.add(deleteImageFromCloudinary(vehicle.outsidePhotoUrl));
+    }
+
+    futures.add(FirebaseFirestore.instance
+        .collection('vehicles')
+        .doc(vehicle.id)
+        .delete());
+
+    await Future.wait(futures);
+    notifyListeners();
+  }
 }
 
 
