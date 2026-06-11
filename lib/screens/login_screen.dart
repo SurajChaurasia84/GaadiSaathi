@@ -59,6 +59,9 @@ class _LoginScreenState extends State<LoginScreen> {
           photoUrl: firebaseUser.photoURL,
         );
 
+        // Save FCM device token so others can send push notifications to this user
+        await appState.saveFcmToken();
+
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
