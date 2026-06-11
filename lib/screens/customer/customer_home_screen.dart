@@ -161,27 +161,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     );
   }
 
-  String _getDefaultOutsidePhoto(VehicleType type) {
-    switch (type) {
-      case VehicleType.car:
-        return 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?q=80&w=600&auto=format&fit=crop';
-      case VehicleType.eRickshaw:
-        return 'https://images.unsplash.com/photo-1626125345510-4603468eedfb?q=80&w=600&auto=format&fit=crop';
-      case VehicleType.loading:
-        return 'https://images.unsplash.com/photo-1516576885230-101c05528b3f?q=80&w=600&auto=format&fit=crop';
-    }
-  }
 
-  String _getDefaultInsidePhoto(VehicleType type) {
-    switch (type) {
-      case VehicleType.car:
-        return 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?q=80&w=600&auto=format&fit=crop';
-      case VehicleType.eRickshaw:
-        return 'https://images.unsplash.com/photo-1517524206127-48bbd363f3d7?q=80&w=600&auto=format&fit=crop';
-      case VehicleType.loading:
-        return 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?q=80&w=600&auto=format&fit=crop';
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -842,6 +822,18 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                       final appState = Provider.of<AppState>(context, listen: false);
                       final messenger = ScaffoldMessenger.of(context);
 
+                      // Enforce image uploads
+                      if (_pickedOutsidePhotoPath == null || _pickedInsidePhotoPath == null) {
+                        messenger.clearSnackBars();
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('Please select both Outside and Inside photos of the vehicle.'),
+                            backgroundColor: Colors.orangeAccent,
+                          ),
+                        );
+                        return;
+                      }
+
                       // Show loading SnackBar
                       messenger.clearSnackBars();
                       messenger.showSnackBar(
@@ -864,14 +856,34 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                       String? finalOutsideUrl;
                       String? finalInsideUrl;
 
-                      // Upload outside photo if custom one is picked
+                      // Upload outside photo
                       if (_pickedOutsidePhotoPath != null) {
                         finalOutsideUrl = await appState.uploadToCloudinary(_pickedOutsidePhotoPath!);
+                        if (finalOutsideUrl == null) {
+                          messenger.clearSnackBars();
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('Failed to upload Outside photo. Please try again.'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                          return;
+                        }
                       }
 
-                      // Upload inside photo if custom one is picked
+                      // Upload inside photo
                       if (_pickedInsidePhotoPath != null) {
                         finalInsideUrl = await appState.uploadToCloudinary(_pickedInsidePhotoPath!);
+                        if (finalInsideUrl == null) {
+                          messenger.clearSnackBars();
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('Failed to upload Inside photo. Please try again.'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                          return;
+                        }
                       }
 
                       // Clear SnackBar
@@ -884,8 +896,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                         ownerGmail: appState.currentGmail ?? 'guest.customer@gmail.com',
                         type: _selectedVehicleType,
                         model: _modelNameController.text.trim(),
-                        insidePhotoUrl: finalInsideUrl ?? _getDefaultInsidePhoto(_selectedVehicleType),
-                        outsidePhotoUrl: finalOutsideUrl ?? _getDefaultOutsidePhoto(_selectedVehicleType),
+                        insidePhotoUrl: finalInsideUrl!,
+                        outsidePhotoUrl: finalOutsideUrl!,
                         ratePerKm: double.tryParse(_rateController.text.trim()) ?? 0.0,
                         isServiceOn: _isAvailable,
                         latitude: appState.customerLatitude + (Random().nextDouble() - 0.5) * 0.02,
