@@ -534,7 +534,7 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Image.network(existingUrl, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
+                errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.broken_image, color: Colors.white38)),
           ),
           // "Tap to change" overlay
