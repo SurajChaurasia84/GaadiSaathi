@@ -572,6 +572,9 @@ class AppState extends ChangeNotifier {
 
   // Chat Operations
   ChatThread getOrCreateThread(Vehicle vehicle) {
+    if (currentGmail == vehicle.ownerGmail) {
+      throw Exception('Self-messaging is not allowed.');
+    }
     final threadId = '${currentGmail}_${vehicle.ownerGmail}';
     final existingIndex = chatThreads.indexWhere((t) => t.threadId == threadId);
 
