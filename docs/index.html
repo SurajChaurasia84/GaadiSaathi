@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - GaadiSaathi</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --primary-color: #536dfe;
+      --secondary-color: #8b5cf6;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-color: #10b981;
+      --shadow-main: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 20px;
+      line-height: 1.6;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 850px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 48px;
+      box-shadow: var(--shadow-main);
+      animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Header Section */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding-bottom: 30px;
+    }
+
+    .logo-container {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      border-radius: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 10px 20px -5px rgba(83, 109, 254, 0.4);
+    }
+
+    .logo-icon {
+      font-size: 32px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(to right, #ffffff, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    /* Policy Content */
+    .policy-content {
+      font-size: 14px;
+    }
+
+    .section {
+      margin-bottom: 32px;
+    }
+
+    .section h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section h2::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 18px;
+      background: var(--primary-color);
+      border-radius: 2px;
+    }
+
+    .section p {
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      text-align: justify;
+    }
+
+    .section ul {
+      list-style-type: none;
+      padding-left: 4px;
+      margin-bottom: 12px;
+    }
+
+    .section ul li {
+      color: var(--text-muted);
+      position: relative;
+      padding-left: 20px;
+      margin-bottom: 8px;
+    }
+
+    .section ul li::before {
+      content: '✦';
+      position: absolute;
+      left: 0;
+      color: var(--secondary-color);
+      font-size: 10px;
+      top: 1px;
+    }
+
+    /* Highlight box */
+    .highlight-box {
+      background: rgba(83, 109, 254, 0.08);
+      border-left: 3px solid var(--primary-color);
+      padding: 16px;
+      border-radius: 0 12px 12px 0;
+      margin: 16px 0;
+    }
+
+    .highlight-box p {
+      color: #e2e8f0;
+      font-size: 13.5px;
+      margin-bottom: 0;
+    }
+
+    /* Footer Section */
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .footer a {
+      color: var(--primary-color);
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.2s ease;
+    }
+
+    .footer a:hover {
+      color: #818cf8;
+      text-decoration: underline;
+    }
+
+    /* Responsive / Mobile view styling */
+    @media (max-width: 600px) {
+      body {
+        background: #0f172a; /* Solid dark color, no gradient background on small screen */
+        padding: 0;
+        align-items: flex-start;
+      }
+
+      .container {
+        margin: 0;
+        width: 100%;
+        max-width: 100%;
+        box-shadow: none;
+        border-radius: 0;
+        border: none;
+        background: #0f172a; /* Match the body background */
+        padding: 32px 20px;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+
+      .header h1 {
+        font-size: 24px;
+      }
+      
+      .section h2 {
+        font-size: 16px;
+      }
+
+      .section p, .section ul li {
+        font-size: 13.5px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <div class="logo-container">
+        <span class="logo-icon">🚗</span>
+      </div>
+      <h1>GaadiSaathi Privacy Policy</h1>
+      <p>Effective Date: June 12, 2026</p>
+    </div>
+
+    <div class="policy-content">
+      <div class="section">
+        <h2>1. Introduction</h2>
+        <p>Welcome to <strong>GaadiSaathi</strong> (referenced as "we", "us", "our", or the "App"), a peer-to-peer vehicle sharing and rental platform. We respect your privacy and are committed to protecting the personal data of both our vehicle owners and customers. This Privacy Policy details the types of information we collect, how we process it, and the security measures in place to safeguard your data.</p>
+      </div>
+
+      <div class="section">
+        <h2>2. Information We Collect</h2>
+        <p>To deliver a secure, localized, and reliable vehicle rental experience, we collect the following categories of data:</p>
+        <ul>
+          <li><strong>Account Information:</strong> When you authenticate via Google Sign-In or Firebase Auth, we securely retrieve your Gmail address, profile name, and profile picture URL.</li>
+          <li><strong>Profile Details:</strong> Contact information provided by you, including your phone number and billing/pickup address.</li>
+          <li><strong>Location Information:</strong> GPS latitude and longitude coordinates. This is required for nearby vehicle discovery, calculating distances between renters and owners, and location reverse-geocoding.</li>
+          <li><strong>Vehicle Details & Photos:</strong> When registering a vehicle, we collect details such as model name, category, pricing rate per kilometer, and user-provided inside/outside vehicle photos.</li>
+          <li><strong>Communication Data:</strong> In-app chat messages, booking invoices, and proposal statuses exchanged between renters and owners.</li>
+          <li><strong>Device Tokens:</strong> Firebase Cloud Messaging (FCM) tokens utilized to send real-time push notifications regarding booking requests and messages.</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>3. How We Use Your Information</h2>
+        <p>The collected information is processed for the following essential business purposes:</p>
+        <ul>
+          <li><strong>Nearby Vehicle Search:</strong> Calculating real-time distances between customer location coordinates and owner vehicles to show relevant vehicles within a 5.0 Km search radius.</li>
+          <li><strong>Facilitating Rental Bookings:</strong> Connecting customers and owners via chat threads and letting them establish mutual booking invoices at direct pricing.</li>
+          <li><strong>Media Management:</strong> Hosting vehicle photos securely on Cloudinary to display accurate previews to other users.</li>
+          <li><strong>Push Notifications:</strong> Delivering instant notifications for incoming messages and booking proposals.</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>4. Data Storage & Third-Party Services</h2>
+        <p>Your data is processed and stored securely using industry-standard cloud partners:</p>
+        <ul>
+          <li><strong>Firebase Auth & Firestore:</strong> Secure user authentication, chat threads, messages history, and vehicle documents are stored in real-time Firestore database.</li>
+          <li><strong>Cloudinary:</strong> User-selected inside and outside photos of vehicles are uploaded directly to Cloudinary storage. We do not store physical media on our own servers.</li>
+          <li><strong>Vercel Backend Proxy:</strong> Custom API functions are deployed on Vercel serverless environment to handle secure tasks (such as signed Cloudinary image deletion requests and FCM push notifications routing).</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>5. Data Control & Deletion</h2>
+        <p>You maintain full ownership of the data you list on the platform:</p>
+        <div class="highlight-box">
+          <p><strong>Integrated Deletion Sync:</strong> When you delete a registered vehicle from your history, GaadiSaathi executes concurrent API requests to immediately delete the Firestore vehicle document and wipe out its corresponding inside and outside photos from Cloudinary. Default preset images are ignored to preserve storage integrity.</p>
+        </div>
+        <p>You can edit your contact phone number, address, and profile details anytime via the Edit Profile screen. Location access can also be toggled off directly from your device settings.</p>
+      </div>
+
+      <div class="section">
+        <h2>6. Security Measures</h2>
+        <p>We enforce strict security rules within Firebase Firestore to ensure users can only access chat threads that belong to them (using authenticated Google credentials checks). Server-side operations (like deleting Cloudinary assets) are protected using hidden environment API keys on Vercel proxy, preventing unauthorized external access.</p>
+      </div>
+
+      <div class="section">
+        <h2>7. Contact Us</h2>
+        <p>If you have any questions, feedback, or data removal requests regarding this Privacy Policy, please contact us at:</p>
+        <p>📧 Email: <a href="mailto:dhirendrasuman001@gmail.com" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">dhirendrasuman001@gmail.com</a></p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>&copy; 2026 GaadiSaathi. All rights reserved.</p>
+    </div>
+  </div>
+
+</body>
+</html>
