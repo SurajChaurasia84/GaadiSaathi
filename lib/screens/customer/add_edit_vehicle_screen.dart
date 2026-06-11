@@ -74,33 +74,27 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
     }
   }
 
-  String _defaultOutside(VehicleType t) {
-    switch (t) {
-      case VehicleType.car:
-        return 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=600';
-      case VehicleType.eRickshaw:
-        return 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600';
-      case VehicleType.loading:
-        return 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=600';
-    }
-  }
 
-  String _defaultInside(VehicleType t) {
-    switch (t) {
-      case VehicleType.car:
-        return 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600';
-      case VehicleType.eRickshaw:
-        return 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600';
-      case VehicleType.loading:
-        return 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=600';
-    }
-  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     final appState = Provider.of<AppState>(context, listen: false);
     final messenger = ScaffoldMessenger.of(context);
+
+    // Validate that images are picked in Add mode
+    if (!_isEditing) {
+      if (_pickedOutsidePhotoPath == null || _pickedInsidePhotoPath == null) {
+        messenger.clearSnackBars();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Please select both Outside and Inside photos of the vehicle.'),
+            backgroundColor: Colors.orangeAccent,
+          ),
+        );
+        return;
+      }
+    }
 
     messenger.clearSnackBars();
     messenger.showSnackBar(
@@ -126,9 +120,29 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
 
     if (_pickedOutsidePhotoPath != null) {
       finalOutsideUrl = await appState.uploadToCloudinary(_pickedOutsidePhotoPath!);
+      if (finalOutsideUrl == null) {
+        messenger.clearSnackBars();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Failed to upload Outside photo. Please try again.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
     }
     if (_pickedInsidePhotoPath != null) {
       finalInsideUrl = await appState.uploadToCloudinary(_pickedInsidePhotoPath!);
+      if (finalInsideUrl == null) {
+        messenger.clearSnackBars();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Failed to upload Inside photo. Please try again.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
     }
 
     messenger.clearSnackBars();
@@ -165,8 +179,8 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
         ownerGmail: appState.currentGmail ?? 'guest@example.com',
         type: _selectedType,
         model: _modelNameController.text.trim(),
-        insidePhotoUrl: finalInsideUrl ?? _defaultInside(_selectedType),
-        outsidePhotoUrl: finalOutsideUrl ?? _defaultOutside(_selectedType),
+        insidePhotoUrl: finalInsideUrl!,
+        outsidePhotoUrl: finalOutsideUrl!,
         ratePerKm: double.tryParse(_rateController.text.trim()) ?? 0.0,
         isServiceOn: _isAvailable,
         latitude: appState.customerLatitude + (rng.nextDouble() - 0.5) * 0.02,
