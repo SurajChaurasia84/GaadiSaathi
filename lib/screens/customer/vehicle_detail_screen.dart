@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/vehicle.dart';
 import '../../providers/app_state.dart';
 import '../chat_screen.dart';
@@ -16,6 +18,143 @@ class VehicleDetailScreen extends StatefulWidget {
 
 class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   bool _showingOutside = true;
+
+  Future<void> _navigateToLocation(BuildContext context) async {
+    final double lat = widget.vehicle.latitude;
+    final double lng = widget.vehicle.longitude;
+    final String? address = widget.vehicle.address;
+
+    Uri uri;
+    if (lat != 0.0 || lng != 0.0) {
+      uri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$lat,$lng");
+    } else if (address != null && address.isNotEmpty) {
+      uri = Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}");
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location not available'),
+          backgroundColor: Colors.orangeAccent,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open maps: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showCallWarningDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
+              SizedBox(width: 8),
+              Text(
+                'Call Owner?',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Are you sure you want to call the owner? Please discuss terms and booking requirements carefully.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _makePhoneCall(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Call'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _makePhoneCall(BuildContext context) async {
+    final String? phone = widget.vehicle.phoneNumber;
+    if (phone == null || phone.isEmpty) return;
+
+    final Uri phoneUri = Uri(
+      scheme: 'tel',
+      path: phone,
+    );
+
+    try {
+      await launchUrl(phoneUri);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not launch dialer for $phone: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  void _openFullScreenImage(BuildContext context, String imageUrl) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: _buildVehicleImage(
+                imageUrl,
+                fit: BoxFit.contain,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,20 +199,30 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                   _buildVehicleImage(
-                     _showingOutside ? widget.vehicle.outsidePhotoUrl : widget.vehicle.insidePhotoUrl,
-                     fit: BoxFit.cover,
+                   GestureDetector(
+                     onTap: () {
+                       _openFullScreenImage(
+                         context,
+                         _showingOutside ? widget.vehicle.outsidePhotoUrl : widget.vehicle.insidePhotoUrl,
+                       );
+                     },
+                     child: _buildVehicleImage(
+                       _showingOutside ? widget.vehicle.outsidePhotoUrl : widget.vehicle.insidePhotoUrl,
+                       fit: BoxFit.cover,
+                     ),
                    ),
                   // Dark shadow overlay at bottom
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Theme.of(context).scaffoldBackgroundColor,
-                          Colors.transparent,
-                        ],
+                  IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Theme.of(context).scaffoldBackgroundColor,
+                            Colors.transparent,
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -177,12 +326,31 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        CircleAvatar(
-                          backgroundColor: const Color(0xFF536DFE),
-                          child: Text(
-                            widget.vehicle.ownerName[0].toUpperCase(),
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                          ),
+                        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: FirebaseFirestore.instance
+                              .collection('users')
+                              .where('email', isEqualTo: widget.vehicle.ownerGmail)
+                              .limit(1)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            String? photoUrl;
+                            if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                              final data = snapshot.data!.docs.first.data();
+                              photoUrl = data['photoUrl'] as String?;
+                            }
+
+                            final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
+                            return CircleAvatar(
+                              backgroundColor: const Color(0xFF536DFE),
+                              backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
+                              child: hasPhoto
+                                  ? null
+                                  : Text(
+                                      widget.vehicle.ownerName[0].toUpperCase(),
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                    ),
+                            );
+                          },
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -198,49 +366,19 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                                 ),
                               ),
                               const SizedBox(height: 2),
-                              Text(
-                                widget.vehicle.ownerGmail,
-                                style: TextStyle(
-                                  color: context.textColor54,
-                                  fontSize: 12,
+                              InkWell(
+                                onTap: () => _navigateToLocation(context),
+                                child: Text(
+                                  (widget.vehicle.address != null && widget.vehicle.address!.isNotEmpty)
+                                      ? widget.vehicle.address!
+                                      : 'Location not specified',
+                                  style: TextStyle(
+                                    color: context.textColor54,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
-                              if (widget.vehicle.phoneNumber != null && widget.vehicle.phoneNumber!.isNotEmpty) ...[
-                                const SizedBox(height: 6),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.phone_rounded, color: Color(0xFF10B981), size: 14),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      widget.vehicle.phoneNumber!,
-                                      style: TextStyle(
-                                        color: context.textColor70,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                              if (widget.vehicle.address != null && widget.vehicle.address!.isNotEmpty) ...[
-                                const SizedBox(height: 6),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(Icons.location_on_rounded, color: Color(0xFF536DFE), size: 14),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        widget.vehicle.address!,
-                                        style: TextStyle(
-                                          color: context.textColor54,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+
                             ],
                           ),
                         ),
@@ -343,41 +481,73 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   ),
                   const SizedBox(height: 40),
 
-                  // Chat to Book Action Button
-                  ElevatedButton(
-                    onPressed: () {
-                      final thread = appState.getOrCreateThread(widget.vehicle);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ChatScreen(threadId: thread.threadId),
+                  // Chat to Book Action Button & Call Button Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final thread = appState.getOrCreateThread(widget.vehicle);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ChatScreen(threadId: thread.threadId),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF536DFE),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            elevation: 5,
+                            shadowColor: const Color(0xFF536DFE).withValues(alpha: 0.3),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.chat_bubble_outline_rounded),
+                              SizedBox(width: 10),
+                              Text(
+                                'Chat to Book',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF536DFE),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      elevation: 5,
-                      shadowColor: const Color(0xFF536DFE).withValues(alpha: 0.3),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.chat_bubble_outline_rounded),
-                        SizedBox(width: 10),
-                        Text(
-                          'Chat to Book Vehicle',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                      if (widget.vehicle.phoneNumber != null && widget.vehicle.phoneNumber!.isNotEmpty) ...[
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: () => _showCallWarningDialog(context),
+                          child: Container(
+                            width: 54,
+                            height: 54,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.phone_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
                           ),
                         ),
                       ],
-                    ),
+                    ],
                   ),
                   const SizedBox(height: 30),
                 ],
