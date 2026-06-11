@@ -25,8 +25,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
   int _currentIndex = 0;
   final TextEditingController _searchController = TextEditingController();
 
-  // Active registered vehicles list (for current session/user)
-  final List<Vehicle> _addedVehicles = [];
+
 
   // Form keys and controllers for custom vehicle addition
   final _addFormKey = GlobalKey<FormState>();
@@ -321,6 +320,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                       onPressed: () {
                         _searchController.clear();
                         appState.setSearchQuery('');
+                        FocusScope.of(context).unfocus();
                       },
                     )
                   : null,
@@ -898,7 +898,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
 
                       if (!mounted) return;
                       setState(() {
-                        _addedVehicles.insert(0, newVehicle);
                         _ownerNameController.clear();
                         _phoneController.clear();
                         _addressController.clear();
@@ -928,17 +927,41 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            'MY REGISTERED VEHICLES',
-            style: TextStyle(
-              color: context.textColor30,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.0,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'MY REGISTERED VEHICLES',
+                style: TextStyle(
+                  color: context.textColor30,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              if (appState.myVehicles.isNotEmpty)
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const VehicleHistoryScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    'See All',
+                    style: TextStyle(
+                      color: Color(0xFF536DFE),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 12),
-          if (_addedVehicles.isEmpty)
+          if (appState.myVehicles.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 20.0),
               child: Center(
@@ -963,9 +986,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: _addedVehicles.length,
+              itemCount: appState.myVehicles.length > 1 ? 1 : appState.myVehicles.length,
               itemBuilder: (context, idx) {
-                final vehicle = _addedVehicles[idx];
+                final vehicle = appState.myVehicles[idx];
                 return VehicleCard(vehicle: vehicle);
               },
             ),
