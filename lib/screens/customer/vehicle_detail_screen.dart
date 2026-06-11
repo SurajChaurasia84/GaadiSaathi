@@ -289,12 +289,19 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                       ),
                       Row(
                         children: [
-                          const Icon(Icons.location_on, color: Color(0xFFEF4444), size: 14),
-                          const SizedBox(width: 4),
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: widget.vehicle.isServiceOn ? const Color(0xFF10B981) : Colors.grey,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
                           Text(
-                            '${distance.toStringAsFixed(1)} Km away',
+                            widget.vehicle.isServiceOn ? 'Available' : 'Unavailable',
                             style: TextStyle(
-                              color: context.textColor70,
+                              color: widget.vehicle.isServiceOn ? const Color(0xFF10B981) : Colors.grey,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
@@ -305,7 +312,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Model title
+                  // Vehicle Model Title
                   Text(
                     widget.vehicle.model,
                     style: TextStyle(
@@ -369,9 +376,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                               InkWell(
                                 onTap: () => _navigateToLocation(context),
                                 child: Text(
-                                  (widget.vehicle.address != null && widget.vehicle.address!.isNotEmpty)
-                                      ? widget.vehicle.address!
-                                      : 'Location not specified',
+                                  '${(widget.vehicle.address != null && widget.vehicle.address!.isNotEmpty) ? widget.vehicle.address! : 'Location not specified'} • ${distance.toStringAsFixed(1)} Km away',
                                   style: TextStyle(
                                     color: context.textColor54,
                                     fontSize: 12,
