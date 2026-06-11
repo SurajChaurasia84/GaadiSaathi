@@ -31,7 +31,7 @@ class AppState extends ChangeNotifier {
   bool isFetchingLocation = true;
   double customerLatitude = 0.0;
   double customerLongitude = 0.0;
-  double searchRadiusKm = 3.0; // Default requirement: 3.0 Km
+  double searchRadiusKm = 5.0; // Default requirement: 5.0 Km
   String searchQuery = '';
   VehicleType? selectedCategoryFilter;
   String currentAddress = 'Fetching...';
