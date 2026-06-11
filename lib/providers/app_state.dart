@@ -6,11 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../models/vehicle.dart';
 import '../models/chat.dart';
+
+// ── Vercel Backend URL ──────────────────────────────────────────────────────
+// Replace with your actual Vercel deployment URL after `vercel deploy`
+const String _kVercelBaseUrl = 'https://gaadisaathi-backend.vercel.app';
 
 class AppState extends ChangeNotifier {
   // Current user info
@@ -540,6 +545,15 @@ class AppState extends ChangeNotifier {
         .set(vehicle.toMap());
   }
 
+  Future<void> updateVehicle(Vehicle vehicle) async {
+    await FirebaseFirestore.instance
+        .collection('vehicles')
+        .doc(vehicle.id)
+        .update(vehicle.toMap());
+    notifyListeners();
+  }
+
+
   void toggleServiceStatus(bool isOn) async {
     if (ownerVehicle != null) {
       ownerVehicle = ownerVehicle!.copyWith(isServiceOn: isOn);
@@ -601,6 +615,39 @@ class AppState extends ChangeNotifier {
         .doc(threadId)
         .collection('messages')
         .add(msg.toMap());
+
+    // Determine recipient and dispatch FCM push notification
+    try {
+      final thread = chatThreads.firstWhere((t) => t.threadId == threadId);
+      final recipientEmail = (currentGmail == thread.customerGmail)
+          ? thread.ownerGmail
+          : thread.customerGmail;
+
+      // Look up recipient's FCM token from Firestore
+      final usersQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: recipientEmail)
+          .limit(1)
+          .get();
+
+      if (usersQuery.docs.isNotEmpty) {
+        final recipientToken = usersQuery.docs.first.data()['fcmToken'] as String?;
+        if (recipientToken != null && recipientToken.isNotEmpty) {
+          final senderName = currentUserName ?? currentGmail ?? 'Someone';
+          final notifBody = isBookingProposal
+              ? '$senderName sent a booking proposal'
+              : text.length > 60 ? '${text.substring(0, 60)}…' : text;
+          await sendNotificationViaVercel(
+            fcmToken: recipientToken,
+            title: '💬 $senderName',
+            body: notifBody,
+            data: {'threadId': threadId},
+          );
+        }
+      }
+    } catch (_) {
+      // Notification failure should never block message delivery
+    }
   }
 
   void updateBookingStatus(String threadId, int messageIndex, BookingStatus status) async {
@@ -673,7 +720,62 @@ class AppState extends ChangeNotifier {
       return null;
     }
   }
+
+  // Save/refresh FCM device token to Firestore for this user
+  Future<void> saveFcmToken() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(alert: true, badge: true, sound: true);
+      final token = await messaging.getToken();
+      if (token == null) return;
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'fcmToken': token,
+        'email': user.email,
+      }, SetOptions(merge: true));
+
+      // Auto-refresh when token rotates
+      messaging.onTokenRefresh.listen((newToken) async {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          'fcmToken': newToken,
+        });
+      });
+    } catch (e) {
+      debugPrint('FCM token save error: $e');
+    }
+  }
+
+  // Send push notification via Vercel backend
+  Future<void> sendNotificationViaVercel({
+    required String fcmToken,
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    try {
+      final url = Uri.parse('$_kVercelBaseUrl/api/send-notification');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'fcmToken': fcmToken,
+          'title': title,
+          'body': body,
+          'data': data ?? {},
+        }),
+      );
+      if (response.statusCode != 200) {
+        debugPrint('Notification failed: ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('sendNotificationViaVercel error: $e');
+    }
+  }
 }
+
 
 extension ThemeHelper on BuildContext {
   bool get isDarkMode {
