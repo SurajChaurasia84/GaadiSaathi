@@ -47,6 +47,8 @@ dependencies:
   geocoding: ^4.0.0
   image_picker: ^1.1.2
   http: ^1.2.0
+  firebase_messaging: ^15.0.0
+  flutter_local_notifications: ^17.0.0
 
 dev_dependencies:
   flutter_test:
