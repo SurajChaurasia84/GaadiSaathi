@@ -62,6 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Save FCM device token so others can send push notifications to this user
         await appState.saveFcmToken();
 
+        if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
