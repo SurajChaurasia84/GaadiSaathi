@@ -9,6 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
 import '../../widgets/vehicle_card.dart';
+import '../../widgets/premium_button.dart';
 import '../login_screen.dart';
 import 'inbox_screen.dart';
 import 'edit_profile_screen.dart';
@@ -234,10 +235,21 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 ),
           actions: _currentIndex == 0
               ? [
+                  const Center(
+                    child: PremiumButton(),
+                  ),
+                  const SizedBox(width: 8),
                   _buildChatAction(context, appState),
                   const SizedBox(width: 8),
                 ]
-              : null,
+              : _currentIndex == 2
+                  ? [
+                      const Center(
+                        child: PremiumButton(),
+                      ),
+                      const SizedBox(width: 16),
+                    ]
+                  : null,
         ),
         body: _currentIndex == 0
             ? _buildBrowseTab(appState)
@@ -291,7 +303,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
             },
             style: TextStyle(color: context.textColor),
             decoration: InputDecoration(
-              hintText: 'Search model, owner name...',
+              hintText: 'Search vehicle, owner, location...',
               hintStyle: TextStyle(color: context.textColor30),
               prefixIcon: Icon(Icons.search_rounded, color: context.textColor30),
               suffixIcon: _searchController.text.isNotEmpty
