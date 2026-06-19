@@ -332,7 +332,8 @@ class AppState extends ChangeNotifier {
         final modelMatch = vehicle.model.toLowerCase().contains(query);
         final ownerMatch = vehicle.ownerName.toLowerCase().contains(query);
         final locationMatch = vehicle.type.displayName.toLowerCase().contains(query);
-        if (!modelMatch && !ownerMatch && !locationMatch) return false;
+        final addressMatch = vehicle.address?.toLowerCase().contains(query) ?? false;
+        if (!modelMatch && !ownerMatch && !locationMatch && !addressMatch) return false;
       }
 
       return true;
