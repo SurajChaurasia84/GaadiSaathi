@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart' hide AppState;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -197,6 +198,11 @@ class AppState extends ChangeNotifier {
   StreamSubscription? _userDocSubscription;
   final Map<String, StreamSubscription> _messageSubscriptions = {};
 
+  // Pre-loaded Banner Ad properties
+  BannerAd? preloadedBannerAd;
+  bool isAdLoaded = false;
+  bool isAdLoading = false;
+
   AppState({
     String? initialEmail,
     String? initialName,
@@ -210,10 +216,12 @@ class AppState extends ChangeNotifier {
     _loadLastReadTimes();
     _loadUserData();
     _syncWithFirestore();
+    preloadAd(); // Start loading banner ad immediately on startup (Splash phase)
   }
 
   void _syncWithFirestore() {
     _syncUserDoc();
+    saveFcmToken(); // Refresh FCM device token on launch / user sync
     // 1. Sync vehicles collection
     _vehiclesSubscription?.cancel();
     _vehiclesSubscription = FirebaseFirestore.instance
@@ -622,10 +630,25 @@ class AppState extends ChangeNotifier {
 
     // Determine recipient and dispatch FCM push notification
     try {
-      final thread = chatThreads.firstWhere((t) => t.threadId == threadId);
-      final recipientEmail = (currentGmail == thread.customerGmail)
-          ? thread.ownerGmail
-          : thread.customerGmail;
+      String? recipientEmail;
+      final threadIdx = chatThreads.indexWhere((t) => t.threadId == threadId);
+      if (threadIdx >= 0) {
+        final thread = chatThreads[threadIdx];
+        recipientEmail = (currentGmail == thread.customerGmail)
+            ? thread.ownerGmail
+            : thread.customerGmail;
+      } else {
+        // Fallback: fetch thread info directly from Firestore if not yet synced in local memory
+        final doc = await FirebaseFirestore.instance.collection('chats').doc(threadId).get();
+        if (doc.exists) {
+          final data = doc.data();
+          if (data != null) {
+            final customerGmail = data['customerGmail'] as String? ?? '';
+            final ownerGmail = data['ownerGmail'] as String? ?? '';
+            recipientEmail = (currentGmail == customerGmail) ? ownerGmail : customerGmail;
+          }
+        }
+      }
 
       // Look up recipient's FCM token from Firestore
       final usersQuery = await FirebaseFirestore.instance
@@ -676,6 +699,32 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  void preloadAd() {
+    if (isAdLoading || isAdLoaded) return;
+    isAdLoading = true;
+    
+    preloadedBannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-9356218156713758/4379704067',
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          isAdLoaded = true;
+          isAdLoading = false;
+          notifyListeners();
+        },
+        onAdFailedToLoad: (ad, err) {
+          debugPrint('Preloaded BannerAd failed to load: $err');
+          ad.dispose();
+          preloadedBannerAd = null;
+          isAdLoaded = false;
+          isAdLoading = false;
+          notifyListeners();
+        },
+      ),
+    )..load();
+  }
+
   @override
   void dispose() {
     _vehiclesSubscription?.cancel();
@@ -685,6 +734,7 @@ class AppState extends ChangeNotifier {
       sub.cancel();
     }
     _messageSubscriptions.clear();
+    preloadedBannerAd?.dispose();
     super.dispose();
   }
 
