@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/app_state.dart';
 import '../chat_screen.dart';
 
@@ -9,7 +10,14 @@ class InboxScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    final chats = appState.chatThreads.where((t) => t.customerGmail == appState.currentGmail).toList();
+    
+    // Support both Owner and Customer roles in Inbox view
+    final chats = appState.chatThreads
+        .where((t) => t.customerGmail == appState.currentGmail || t.ownerGmail == appState.currentGmail)
+        .toList();
+
+    // Sort by last message timestamp descending so most recent is at the top
+    chats.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -33,12 +41,12 @@ class InboxScreen extends StatelessWidget {
                   Icon(Icons.chat_bubble_outline_rounded, color: context.textColor30, size: 48),
                   const SizedBox(height: 16),
                   Text(
-                    'No active booking conversations',
+                    'No active conversations',
                     style: TextStyle(color: context.textColor30, fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Select a vehicle from explorer and click Chat to Book.',
+                    'Conversations about vehicle bookings will appear here.',
                     style: TextStyle(color: context.textColor30.withValues(alpha: 0.8), fontSize: 12),
                   ),
                 ],
@@ -49,6 +57,11 @@ class InboxScreen extends StatelessWidget {
               itemCount: chats.length,
               itemBuilder: (context, index) {
                 final chat = chats[index];
+                final isOwner = appState.currentGmail == chat.ownerGmail;
+                final partnerName = isOwner ? chat.customerName : chat.ownerName;
+                final partnerEmail = isOwner ? chat.customerGmail : chat.ownerGmail;
+                final partnerInitial = partnerName.isNotEmpty ? partnerName[0].toUpperCase() : '?';
+
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
@@ -58,15 +71,34 @@ class InboxScreen extends StatelessWidget {
                   ),
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    leading: CircleAvatar(
-                      backgroundColor: const Color(0xFF10B981),
-                      child: Text(
-                        chat.ownerName[0].toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
+                    leading: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: FirebaseFirestore.instance
+                          .collection('users')
+                          .where('email', isEqualTo: partnerEmail)
+                          .limit(1)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        String? photoUrl;
+                        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                          final data = snapshot.data!.docs.first.data();
+                          photoUrl = data['photoUrl'] as String?;
+                        }
+
+                        final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
+                        return CircleAvatar(
+                          backgroundColor: const Color(0xFF10B981),
+                          backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
+                          child: hasPhoto
+                              ? null
+                              : Text(
+                                  partnerInitial,
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
+                        );
+                      },
                     ),
                     title: Text(
-                      chat.ownerName,
+                      partnerName,
                       style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     subtitle: Column(
