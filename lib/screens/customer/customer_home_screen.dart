@@ -14,6 +14,7 @@ import '../login_screen.dart';
 import 'inbox_screen.dart';
 import 'edit_profile_screen.dart';
 import 'vehicle_history_screen.dart';
+import '../../widgets/ad_banner_widget.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -256,30 +257,36 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
             : _currentIndex == 1
                 ? _buildAddRequestTab(appState)
                 : _buildProfileTab(appState),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          backgroundColor: Theme.of(context).cardColor,
-          selectedItemColor: const Color(0xFF536DFE),
-          unselectedItemColor: context.textColor30,
-          showUnselectedLabels: true,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.explore_rounded),
-              label: 'Explore',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.add_circle_outline_rounded),
-              label: 'Add',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_rounded),
-              label: 'Profile',
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const AdBannerWidget(),
+            BottomNavigationBar(
+              currentIndex: _currentIndex,
+              onTap: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              backgroundColor: Theme.of(context).cardColor,
+              selectedItemColor: const Color(0xFF536DFE),
+              unselectedItemColor: context.textColor30,
+              showUnselectedLabels: true,
+              type: BottomNavigationBarType.fixed,
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.explore_rounded),
+                  label: 'Explore',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.add_circle_outline_rounded),
+                  label: 'Add',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.person_rounded),
+                  label: 'Profile',
+                ),
+              ],
             ),
           ],
         ),
