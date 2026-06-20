@@ -1,60 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart' hide AppState;
+import 'package:provider/provider.dart';
+import '../providers/app_state.dart';
 
-class AdBannerWidget extends StatefulWidget {
+class AdBannerWidget extends StatelessWidget {
   const AdBannerWidget({super.key});
 
   @override
-  State<AdBannerWidget> createState() => _AdBannerWidgetState();
-}
-
-class _AdBannerWidgetState extends State<AdBannerWidget> {
-  BannerAd? _bannerAd;
-  bool _isLoaded = false;
-
-  // The Banner Ad Unit ID provided by the user
-  final String _adUnitId = 'ca-app-pub-9356218156713758/4379704067';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAd();
-  }
-
-  void _loadAd() {
-    _bannerAd = BannerAd(
-      adUnitId: _adUnitId,
-      request: const AdRequest(),
-      size: AdSize.banner,
-      listener: BannerAdListener(
-        onAdLoaded: (ad) {
-          setState(() {
-            _isLoaded = true;
-          });
-        },
-        onAdFailedToLoad: (ad, err) {
-          debugPrint('BannerAd failed to load: $err');
-          ad.dispose();
-        },
-      ),
-    )..load();
-  }
-
-  @override
-  void dispose() {
-    _bannerAd?.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_isLoaded && _bannerAd != null) {
+    final appState = Provider.of<AppState>(context);
+    final bannerAd = appState.preloadedBannerAd;
+
+    if (bannerAd == null) {
+      // Trigger lazy reload if for some reason the ad hasn't loaded / failed on startup
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        appState.preloadAd();
+      });
+    }
+
+    if (appState.isAdLoaded && bannerAd != null) {
       return Container(
         alignment: Alignment.center,
-        width: _bannerAd!.size.width.toDouble(),
-        height: _bannerAd!.size.height.toDouble(),
+        width: bannerAd.size.width.toDouble(),
+        height: bannerAd.size.height.toDouble(),
         color: Theme.of(context).scaffoldBackgroundColor,
-        child: AdWidget(ad: _bannerAd!),
+        child: AdWidget(ad: bannerAd),
       );
     }
     // Return an empty spacer if not loaded to prevent layout shifts
