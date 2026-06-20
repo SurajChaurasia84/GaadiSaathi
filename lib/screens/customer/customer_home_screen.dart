@@ -24,6 +24,7 @@ class CustomerHomeScreen extends StatefulWidget {
 }
 
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBindingObserver {
+  static const bool _showPremiumButton = false; // Toggle to true after publishing to reactivate Premium button
   int _currentIndex = 0;
   final TextEditingController _searchController = TextEditingController();
 
@@ -236,19 +237,23 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 ),
           actions: _currentIndex == 0
               ? [
-                  const Center(
-                    child: PremiumButton(),
-                  ),
-                  const SizedBox(width: 8),
+                  if (_showPremiumButton) ...[
+                    const Center(
+                      child: PremiumButton(),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   _buildChatAction(context, appState),
                   const SizedBox(width: 8),
                 ]
               : _currentIndex == 2
                   ? [
-                      const Center(
-                        child: PremiumButton(),
-                      ),
-                      const SizedBox(width: 16),
+                      if (_showPremiumButton) ...[
+                        const Center(
+                          child: PremiumButton(),
+                        ),
+                        const SizedBox(width: 16),
+                      ]
                     ]
                   : null,
         ),
