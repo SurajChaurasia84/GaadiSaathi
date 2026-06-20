@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/chat.dart';
 import '../providers/app_state.dart';
 
@@ -56,6 +58,63 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
   }
 
+  Future<void> _makeCall(String partnerEmail) async {
+    try {
+      final query = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: partnerEmail)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        final data = query.docs.first.data();
+        final String? phone = data['phone'] as String?;
+        if (phone != null && phone.trim().isNotEmpty) {
+          final Uri phoneUri = Uri(scheme: 'tel', path: phone.trim());
+          if (await canLaunchUrl(phoneUri)) {
+            await launchUrl(phoneUri);
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Could not open dialer app.'),
+                  backgroundColor: Colors.redAccent,
+                ),
+              );
+            }
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Contact number not available.'),
+                backgroundColor: Colors.orangeAccent,
+              ),
+            );
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Contact number not available.'),
+              backgroundColor: Colors.orangeAccent,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error checking contact: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
@@ -64,8 +123,18 @@ class _ChatScreenState extends State<ChatScreen> {
     if (threadIndex < 0) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: AppBar(backgroundColor: Colors.transparent),
-        body: Center(child: Text('Chat not found', style: TextStyle(color: context.textColor))),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_rounded, color: context.textColor),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(
+            color: Color(0xFF536DFE),
+          ),
+        ),
       );
     }
 
@@ -91,19 +160,61 @@ class _ChatScreenState extends State<ChatScreen> {
           icon: Icon(Icons.arrow_back_rounded, color: context.textColor),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            Text(
-              chatPartnerName,
-              style: TextStyle(color: context.textColor, fontSize: 15, fontWeight: FontWeight.bold),
+            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .where('email', isEqualTo: isOwner ? thread.customerGmail : thread.ownerGmail)
+                  .limit(1)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                String? photoUrl;
+                if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                  final data = snapshot.data!.docs.first.data();
+                  photoUrl = data['photoUrl'] as String?;
+                }
+
+                final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
+                return CircleAvatar(
+                  radius: 18,
+                  backgroundColor: const Color(0xFF10B981),
+                  backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
+                  child: hasPhoto
+                      ? null
+                      : Text(
+                          chatPartnerName.isNotEmpty ? chatPartnerName[0].toUpperCase() : '?',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                );
+              },
             ),
-            Text(
-              'Vehicle: ${thread.vehicleModel}',
-              style: TextStyle(color: context.textColor54, fontSize: 11),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    chatPartnerName,
+                    style: TextStyle(color: context.textColor, fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Vehicle: ${thread.vehicleModel}',
+                    style: TextStyle(color: context.textColor54, fontSize: 11),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.phone_rounded, color: context.textColor),
+            tooltip: 'Call User',
+            onPressed: () => _makeCall(isOwner ? thread.customerGmail : thread.ownerGmail),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
         child: Column(
