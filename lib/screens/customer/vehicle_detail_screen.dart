@@ -18,6 +18,23 @@ class VehicleDetailScreen extends StatefulWidget {
 
 class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   bool _showingOutside = true;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _ownerStream;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _reviewsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _ownerStream = FirebaseFirestore.instance
+        .collection('users')
+        .where('email', isEqualTo: widget.vehicle.ownerGmail)
+        .limit(1)
+        .snapshots();
+    _reviewsStream = FirebaseFirestore.instance
+        .collection('vehicles')
+        .doc(widget.vehicle.id)
+        .collection('reviews')
+        .snapshots();
+  }
 
   Future<void> _navigateToLocation(BuildContext context) async {
     final double lat = widget.vehicle.latitude;
@@ -331,14 +348,10 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                          stream: FirebaseFirestore.instance
-                              .collection('users')
-                              .where('email', isEqualTo: widget.vehicle.ownerGmail)
-                              .limit(1)
-                              .snapshots(),
+                          stream: _ownerStream,
                           builder: (context, snapshot) {
                             String? photoUrl;
                             if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
@@ -363,9 +376,12 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 widget.vehicle.ownerName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: context.textColor,
                                   fontSize: 15,
@@ -377,71 +393,27 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                                 onTap: () => _navigateToLocation(context),
                                 child: Text(
                                   '${(widget.vehicle.address != null && widget.vehicle.address!.isNotEmpty) ? widget.vehicle.address! : 'Location not specified'} • ${distance.toStringAsFixed(1)} Km away',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     color: context.textColor54,
                                     fontSize: 12,
                                   ),
                                 ),
                               ),
-
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Rate display card
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.2)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
+                        const SizedBox(width: 12),
                         Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              'VERIFIED VEHICLE RATE',
-                              style: TextStyle(
-                                color: context.textColor30,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.0,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Set directly by Owner',
-                              style: TextStyle(
-                                color: context.textColor54,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            const Text(
-                              '₹',
-                              style: TextStyle(
+                              '₹${widget.vehicle.ratePerKm.toStringAsFixed(1)}',
+                              style: const TextStyle(
                                 color: Color(0xFF10B981),
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              widget.vehicle.ratePerKm.toStringAsFixed(1),
-                              style: TextStyle(
-                                color: context.textColor,
-                                fontSize: 28,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
@@ -449,11 +421,12 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                               '/Km',
                               style: TextStyle(
                                 color: context.textColor54,
-                                fontSize: 13,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
-                        )
+                        ),
                       ],
                     ),
                   ),
@@ -582,6 +555,67 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                     ),
                   ],
                   const SizedBox(height: 30),
+
+                  // Ratings & Reviews Section
+                  const Divider(height: 40, thickness: 1),
+                  Text(
+                    'Ratings & Reviews',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: context.textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: _reviewsStream,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      final docs = snapshot.data?.docs ?? [];
+                      double averageRating = 0.0;
+                      int reviewCount = docs.length;
+
+                      if (reviewCount > 0) {
+                        double totalRating = 0.0;
+                        for (var doc in docs) {
+                          totalRating += (doc.data()['rating'] as num?)?.toDouble() ?? 0.0;
+                        }
+                        averageRating = totalRating / reviewCount;
+                      }
+
+                      // Sort documents in memory by timestamp descending (newest first)
+                      final sortedDocs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs);
+                      sortedDocs.sort((a, b) {
+                        final tsA = a.data()['timestamp'] as int? ?? 0;
+                        final tsB = b.data()['timestamp'] as int? ?? 0;
+                        return tsB.compareTo(tsA);
+                      });
+
+                      final currentGmail = appState.currentGmail;
+                      QueryDocumentSnapshot<Map<String, dynamic>>? userReview;
+                      if (currentGmail != null && currentGmail.isNotEmpty) {
+                        for (var doc in docs) {
+                          if (doc.data()['userGmail'] == currentGmail) {
+                            userReview = doc;
+                            break;
+                          }
+                        }
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildReviewsSummaryCard(averageRating, reviewCount, userReview),
+                          const SizedBox(height: 24),
+                          _buildReviewsList(sortedDocs),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 30),
                 ],
               ),
             ),
@@ -646,6 +680,593 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
       child: const Center(
         child: Icon(Icons.image_not_supported, color: Colors.grey, size: 40),
       ),
+    );
+  }
+
+  Widget _buildStarRow(double rating, {double size = 20, Color color = Colors.amber}) {
+    List<Widget> stars = [];
+    int fullStars = rating.floor();
+    bool hasHalfStar = (rating - fullStars) >= 0.5;
+
+    for (int i = 1; i <= 5; i++) {
+      if (i <= fullStars) {
+        stars.add(Icon(Icons.star_rounded, color: color, size: size));
+      } else if (i == fullStars + 1 && hasHalfStar) {
+        stars.add(Icon(Icons.star_half_rounded, color: color, size: size));
+      } else {
+        stars.add(Icon(Icons.star_border_rounded, color: color.withValues(alpha: 0.3), size: size));
+      }
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: stars,
+    );
+  }
+
+  Widget _buildReviewsSummaryCard(double avgRating, int count, QueryDocumentSnapshot<Map<String, dynamic>>? userReview) {
+    final hasReviewed = userReview != null;
+    return GestureDetector(
+      onTap: () {
+        if (hasReviewed) {
+          final data = userReview.data();
+          _showWriteReviewBottomSheet(
+            context,
+            existingDocId: userReview.id,
+            existingRating: (data['rating'] as num?)?.toInt() ?? 5,
+            existingComment: data['comment'] as String? ?? '',
+          );
+        } else {
+          _showWriteReviewBottomSheet(context);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF536DFE).withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  count > 0 ? avgRating.toStringAsFixed(1) : '0.0',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: context.textColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                _buildStarRow(avgRating, size: 16),
+                const SizedBox(height: 4),
+                Text(
+                  '$count reviews',
+                  style: TextStyle(
+                    color: context.textColor54,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hasReviewed ? 'Update your review!' : 'Share your feedback!',
+                    style: TextStyle(
+                      color: context.textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    hasReviewed
+                        ? 'Tap here to edit or update your existing review.'
+                        : 'Tap here to rate this vehicle and write a review.',
+                    style: TextStyle(
+                      color: context.textColor54,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: context.textColor30,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReviewsList(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+    if (docs.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        alignment: Alignment.center,
+        child: Column(
+          children: [
+            Icon(Icons.rate_review_outlined, color: context.textColor30, size: 40),
+            const SizedBox(height: 12),
+            Text(
+              'No reviews yet. Be the first to review!',
+              style: TextStyle(color: context.textColor54, fontSize: 13, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final appState = Provider.of<AppState>(context, listen: false);
+    final currentGmail = appState.currentGmail;
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: docs.length,
+      itemBuilder: (context, index) {
+        final data = docs[index].data();
+        final reviewerName = data['userName'] as String? ?? 'Anonymous';
+        final userGmail = data['userGmail'] as String? ?? '';
+        final rating = (data['rating'] as num?)?.toDouble() ?? 5.0;
+        final comment = data['comment'] as String? ?? '';
+        final docId = docs[index].id;
+        final isMyReview = currentGmail != null && currentGmail.isNotEmpty && userGmail == currentGmail;
+
+        DateTime date = DateTime.now();
+        final ts = data['timestamp'];
+        if (ts is int) {
+          date = DateTime.fromMillisecondsSinceEpoch(ts);
+        }
+
+        final formattedDate = '${date.day}/${date.month}/${date.year}';
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _ReviewerAvatar(
+                    email: userGmail,
+                    fallbackInitial: reviewerName.isNotEmpty ? reviewerName[0].toUpperCase() : '?',
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          reviewerName,
+                          style: TextStyle(
+                            color: context.textColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            _buildStarRow(rating, size: 12),
+                            const SizedBox(width: 8),
+                            Text(
+                              formattedDate,
+                              style: TextStyle(
+                                color: context.textColor30,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isMyReview) ...[
+                    IconButton(
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: Colors.redAccent,
+                        size: 20,
+                      ),
+                      onPressed: () => _confirmDeleteReview(context, docId),
+                    ),
+                  ],
+                ],
+              ),
+              if (comment.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  comment,
+                  style: TextStyle(
+                    color: context.textColor70,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteReview(BuildContext context, String docId) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+              SizedBox(width: 8),
+              Text(
+                'Delete Review?',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Are you sure you want to delete your review? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('vehicles')
+                      .doc(widget.vehicle.id)
+                      .collection('reviews')
+                      .doc(docId)
+                      .delete();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Review deleted successfully.'),
+                        backgroundColor: Color(0xFF10B981),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to delete review: $e'),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showWriteReviewBottomSheet(
+    BuildContext context, {
+    String? existingDocId,
+    int? existingRating,
+    String? existingComment,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => _ReviewInputSheet(
+        vehicleId: widget.vehicle.id,
+        existingDocId: existingDocId,
+        existingRating: existingRating,
+        existingComment: existingComment,
+      ),
+    );
+  }
+}
+
+class _ReviewInputSheet extends StatefulWidget {
+  final String vehicleId;
+  final String? existingDocId;
+  final int? existingRating;
+  final String? existingComment;
+
+  const _ReviewInputSheet({
+    required this.vehicleId,
+    this.existingDocId,
+    this.existingRating,
+    this.existingComment,
+  });
+
+  @override
+  State<_ReviewInputSheet> createState() => _ReviewInputSheetState();
+}
+
+class _ReviewInputSheetState extends State<_ReviewInputSheet> {
+  int _selectedRating = 5;
+  final TextEditingController _commentController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRating = widget.existingRating ?? 5;
+    _commentController.text = widget.existingComment ?? '';
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitReview() async {
+    final comment = _commentController.text.trim();
+
+    final appState = Provider.of<AppState>(context, listen: false);
+    final userName = appState.currentUserName ?? 'Anonymous';
+    final userGmail = appState.currentGmail ?? 'unknown@gmail.com';
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      if (widget.existingDocId != null) {
+        await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(widget.vehicleId)
+            .collection('reviews')
+            .doc(widget.existingDocId)
+            .update({
+          'rating': _selectedRating,
+          'comment': comment,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        });
+      } else {
+        await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(widget.vehicleId)
+            .collection('reviews')
+            .add({
+          'userName': userName,
+          'userGmail': userGmail,
+          'rating': _selectedRating,
+          'comment': comment,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        });
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Review submitted successfully!'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit review: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                widget.existingDocId != null ? 'Edit Your Review' : 'Write a Review',
+                style: TextStyle(
+                  color: context.textColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(5, (index) {
+                final starValue = index + 1;
+                return IconButton(
+                  iconSize: 36,
+                  icon: Icon(
+                    starValue <= _selectedRating
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
+                    color: Colors.amber,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _selectedRating = starValue;
+                    });
+                  },
+                );
+              }),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          TextField(
+            controller: _commentController,
+            maxLines: 3,
+            textCapitalization: TextCapitalization.sentences,
+            style: TextStyle(color: context.textColor, fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'Share details of your experience...',
+              hintStyle: TextStyle(color: context.textColor30),
+              filled: true,
+              fillColor: Theme.of(context).scaffoldBackgroundColor,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.all(16),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          ElevatedButton(
+            onPressed: _isSubmitting ? null : _submitReview,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF536DFE),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+            child: _isSubmitting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : Text(
+                    widget.existingDocId != null ? 'Update Review' : 'Submit Review',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewerAvatar extends StatefulWidget {
+  final String email;
+  final String fallbackInitial;
+
+  const _ReviewerAvatar({required this.email, required this.fallbackInitial});
+
+  @override
+  State<_ReviewerAvatar> createState() => _ReviewerAvatarState();
+}
+
+class _ReviewerAvatarState extends State<_ReviewerAvatar> {
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _userStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _userStream = FirebaseFirestore.instance
+        .collection('users')
+        .where('email', isEqualTo: widget.email)
+        .limit(1)
+        .snapshots();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.email.isEmpty) {
+      return CircleAvatar(
+        radius: 16,
+        backgroundColor: const Color(0xFF536DFE).withValues(alpha: 0.15),
+        child: Text(
+          widget.fallbackInitial,
+          style: const TextStyle(
+            color: Color(0xFF536DFE),
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      );
+    }
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _userStream,
+      builder: (context, snapshot) {
+        String? photoUrl;
+        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+          final data = snapshot.data!.docs.first.data();
+          photoUrl = data['photoUrl'] as String?;
+        }
+
+        final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
+        return CircleAvatar(
+          radius: 16,
+          backgroundColor: const Color(0xFF536DFE).withValues(alpha: 0.15),
+          backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
+          child: hasPhoto
+              ? null
+              : Text(
+                  widget.fallbackInitial,
+                  style: const TextStyle(
+                    color: Color(0xFF536DFE),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+        );
+      },
     );
   }
 }
