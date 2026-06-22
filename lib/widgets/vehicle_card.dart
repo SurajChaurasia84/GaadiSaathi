@@ -1,24 +1,42 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/vehicle.dart';
 import '../providers/app_state.dart';
 import '../screens/customer/vehicle_detail_screen.dart';
 
-class VehicleCard extends StatelessWidget {
+class VehicleCard extends StatefulWidget {
   final Vehicle vehicle;
 
   const VehicleCard({super.key, required this.vehicle});
 
   @override
+  State<VehicleCard> createState() => _VehicleCardState();
+}
+
+class _VehicleCardState extends State<VehicleCard> {
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _reviewsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _reviewsStream = FirebaseFirestore.instance
+        .collection('vehicles')
+        .doc(widget.vehicle.id)
+        .collection('reviews')
+        .snapshots();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
-    final distance = appState.getDistanceFromUser(vehicle.latitude, vehicle.longitude);
+    final distance = appState.getDistanceFromUser(widget.vehicle.latitude, widget.vehicle.longitude);
     final isDark = context.isDarkMode;
 
     Color typeColor;
     IconData typeIcon;
-    switch (vehicle.type) {
+    switch (widget.vehicle.type) {
       case VehicleType.car:
         typeColor = const Color(0xFF3B82F6);
         typeIcon = Icons.directions_car_rounded;
@@ -52,7 +70,7 @@ class VehicleCard extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => VehicleDetailScreen(vehicle: vehicle),
+              builder: (context) => VehicleDetailScreen(vehicle: widget.vehicle),
             ),
           );
         },
@@ -65,7 +83,7 @@ class VehicleCard extends StatelessWidget {
             Stack(
               children: [
                 _buildVehicleImage(
-                  vehicle.outsidePhotoUrl,
+                  widget.vehicle.outsidePhotoUrl,
                   height: 150,
                   width: double.infinity,
                 ),
@@ -129,7 +147,7 @@ class VehicleCard extends StatelessWidget {
                         Icon(typeIcon, color: typeColor, size: 12),
                         const SizedBox(width: 4),
                         Text(
-                          vehicle.type.displayName,
+                          widget.vehicle.type.displayName,
                           style: TextStyle(
                             color: typeColor,
                             fontSize: 11,
@@ -148,27 +166,96 @@ class VehicleCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    vehicle.model,
-                    style: TextStyle(
-                      color: context.textColor,
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.person, color: context.textColor54, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Owner: ${vehicle.ownerName}',
-                        style: TextStyle(
-                          color: context.textColor54,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
+                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: _reviewsStream,
+                    builder: (context, snapshot) {
+                      final docs = snapshot.data?.docs ?? [];
+                      double averageRating = 0.0;
+                      int reviewCount = docs.length;
+
+                      if (reviewCount > 0) {
+                        double totalRating = 0.0;
+                        for (var doc in docs) {
+                          totalRating += (doc.data()['rating'] as num?)?.toDouble() ?? 0.0;
+                        }
+                        averageRating = totalRating / reviewCount;
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  widget.vehicle.model,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: context.textColor,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              if (reviewCount > 0)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      averageRating.toStringAsFixed(1),
+                                      style: TextStyle(
+                                        color: context.textColor,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    _buildStarRow(averageRating, size: 12),
+                                  ],
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.person, color: context.textColor54, size: 14),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        'Owner: ${widget.vehicle.ownerName}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: context.textColor54,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (reviewCount > 0) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  '($reviewCount reviews)',
+                                  style: TextStyle(
+                                    color: context.textColor54,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   Divider(color: context.isDarkMode ? const Color(0x11FFFFFF) : const Color(0x0A000000), height: 1),
@@ -202,7 +289,7 @@ class VehicleCard extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                vehicle.ratePerKm.toStringAsFixed(1),
+                                widget.vehicle.ratePerKm.toStringAsFixed(1),
                                 style: TextStyle(
                                   color: context.textColor,
                                   fontSize: 20,
@@ -225,7 +312,7 @@ class VehicleCard extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => VehicleDetailScreen(vehicle: vehicle),
+                              builder: (context) => VehicleDetailScreen(vehicle: widget.vehicle),
                             ),
                           );
                         },
@@ -255,11 +342,11 @@ class VehicleCard extends StatelessWidget {
                 ],
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildVehicleImage(String url, {required double height, double? width, BoxFit fit = BoxFit.cover}) {
@@ -289,6 +376,26 @@ class VehicleCard extends StatelessWidget {
       child: const Center(
         child: Icon(Icons.image_not_supported, color: Colors.grey, size: 40),
       ),
+    );
+  }
+
+  Widget _buildStarRow(double rating, {double size = 20, Color color = Colors.amber}) {
+    List<Widget> stars = [];
+    int fullStars = rating.floor();
+    bool hasHalfStar = (rating - fullStars) >= 0.5;
+
+    for (int i = 1; i <= 5; i++) {
+      if (i <= fullStars) {
+        stars.add(Icon(Icons.star_rounded, color: color, size: size));
+      } else if (i == fullStars + 1 && hasHalfStar) {
+        stars.add(Icon(Icons.star_half_rounded, color: color, size: size));
+      } else {
+        stars.add(Icon(Icons.star_border_rounded, color: color.withValues(alpha: 0.3), size: size));
+      }
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: stars,
     );
   }
 }
