@@ -1,7 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/chat.dart';
 import '../providers/app_state.dart';
 
@@ -17,6 +22,9 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  bool _isRetrievingLocation = false;
+  String? _selectedImagePath;
+  int _messageCount = 0;
 
   @override
   void dispose() {
@@ -37,14 +45,28 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     final text = _msgController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty && _selectedImagePath == null) return;
 
     final appState = Provider.of<AppState>(context, listen: false);
-    appState.sendChatMessage(widget.threadId, text);
-    _msgController.clear();
-    _scrollToBottom();
+
+    if (_selectedImagePath != null) {
+      final imagePath = _selectedImagePath!;
+      setState(() {
+        _selectedImagePath = null;
+      });
+      _msgController.clear();
+      _scrollToBottom();
+
+      final msgId = await appState.sendChatMessage(widget.threadId, 'local_image:$imagePath');
+      _uploadImageInBackground(msgId, imagePath);
+    } else {
+      appState.sendChatMessage(widget.threadId, text);
+      _msgController.clear();
+      _scrollToBottom();
+      setState(() {});
+    }
   }
 
   void _sendBookingProposal(double rate) {
@@ -56,6 +78,125 @@ class _ChatScreenState extends State<ChatScreen> {
       ratePerKm: rate,
     );
     _scrollToBottom();
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image == null) return;
+
+      setState(() {
+        _selectedImagePath = image.path;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking image: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _uploadImageInBackground(String msgId, String imagePath) async {
+    try {
+      final appState = Provider.of<AppState>(context, listen: false);
+      final imageUrl = await appState.uploadToCloudinary(imagePath);
+
+      if (imageUrl != null) {
+        await FirebaseFirestore.instance
+            .collection('chats')
+            .doc(widget.threadId)
+            .collection('messages')
+            .doc(msgId)
+            .update({'text': imageUrl});
+      } else {
+        await FirebaseFirestore.instance
+            .collection('chats')
+            .doc(widget.threadId)
+            .collection('messages')
+            .doc(msgId)
+            .update({'text': 'local_image_failed:$imagePath'});
+      }
+    } catch (e) {
+      debugPrint('Error uploading in background: $e');
+      try {
+        await FirebaseFirestore.instance
+            .collection('chats')
+            .doc(widget.threadId)
+            .collection('messages')
+            .doc(msgId)
+            .update({'text': 'local_image_failed:$imagePath'});
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _sendLocation() async {
+    try {
+      final appState = Provider.of<AppState>(context, listen: false);
+      if (appState.customerLatitude != 0.0 && appState.customerLongitude != 0.0) {
+        final mapsUrl = 'https://www.google.com/maps/search/?api=1&query=${appState.customerLatitude},${appState.customerLongitude}';
+        if (mounted) {
+          setState(() {
+            _msgController.text = mapsUrl;
+          });
+        }
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Location permission denied.')),
+            );
+          }
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permissions are permanently denied.')),
+          );
+        }
+        return;
+      }
+
+      setState(() {
+        _isRetrievingLocation = true;
+      });
+
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      final mapsUrl = 'https://www.google.com/maps/search/?api=1&query=${position.latitude},${position.longitude}';
+      
+      if (mounted) {
+        setState(() {
+          _msgController.text = mapsUrl;
+          _isRetrievingLocation = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isRetrievingLocation = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error retrieving location: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _makeCall(String partnerEmail) async {
@@ -149,7 +290,10 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     // Trigger auto-scroll when new messages arrive
-    _scrollToBottom();
+    if (messages.length != _messageCount) {
+      _messageCount = messages.length;
+      _scrollToBottom();
+    }
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -276,7 +420,8 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
 
             // Quick Actions Panel
-            _buildQuickActions(appState, thread),
+            if (thread.messages.isEmpty)
+              _buildQuickActions(appState, thread),
 
             // Text Input Box
             _buildTextInputPanel(),
@@ -353,10 +498,7 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              msg.text,
-              style: TextStyle(color: isMe ? Colors.white : context.textColor, fontSize: 14),
-            ),
+            _buildMessageContent(msg, isMe),
             const SizedBox(height: 4),
             Align(
               alignment: Alignment.bottomRight,
@@ -372,6 +514,189 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildMessageContent(ChatMessage msg, bool isMe) {
+    final text = msg.text;
+    if (text.startsWith('local_image:')) {
+      final path = text.substring('local_image:'.length);
+      if (isMe) {
+        return GestureDetector(
+          onTap: () => _openImagePreview(context, path, isLocal: true),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Image.file(
+                  File(path),
+                  width: 200,
+                  height: 150,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 200,
+                      height: 150,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                    );
+                  },
+                ),
+                Container(
+                  width: 200,
+                  height: 150,
+                  color: Colors.black26,
+                ),
+                const CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        return Container(
+          width: 200,
+          height: 150,
+          decoration: BoxDecoration(
+            color: context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF536DFE)),
+                SizedBox(height: 10),
+                Text(
+                  'Receiving image...',
+                  style: TextStyle(color: Colors.grey, fontSize: 11, fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    } else if (text.startsWith('local_image_failed:')) {
+      final path = text.substring('local_image_failed:'.length);
+      if (isMe) {
+        return GestureDetector(
+          onTap: () => _openImagePreview(context, path, isLocal: true),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Image.file(
+                  File(path),
+                  width: 200,
+                  height: 150,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 200,
+                      height: 150,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                    );
+                  },
+                ),
+                Container(
+                  width: 200,
+                  height: 150,
+                  color: Colors.black45,
+                ),
+                const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 28),
+                    SizedBox(height: 6),
+                    Text(
+                      'Failed to upload',
+                      style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        return Container(
+          width: 200,
+          height: 150,
+          decoration: BoxDecoration(
+            color: context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.broken_image_outlined, color: Colors.grey, size: 28),
+                SizedBox(height: 6),
+                Text(
+                  'Failed to receive image',
+                  style: TextStyle(color: Colors.grey, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    } else if (text.startsWith('http') && (text.contains('cloudinary.com') || text.contains('.jpg') || text.contains('.png') || text.contains('.jpeg') || text.contains('.gif') || text.contains('.webp'))) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () => _openImagePreview(context, text, isLocal: false),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CachedNetworkImage(
+                imageUrl: text,
+                width: 200,
+                height: 150,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => const SizedBox(
+                  width: 200,
+                  height: 150,
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey),
+                  ),
+                ),
+                errorWidget: (context, url, error) => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.broken_image, color: Colors.grey),
+                      SizedBox(width: 8),
+                      Text('Image failed to load', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (text.startsWith('https://www.google.com/maps/search/?api=1&query=')) {
+      return GestureDetector(
+        onTap: () async {
+          final uri = Uri.parse(text);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        },
+        child: _LocationBubbleContent(mapsUrl: text, isMe: isMe),
+      );
+    } else {
+      return Text(
+        text,
+        style: TextStyle(color: isMe ? Colors.white : context.textColor, fontSize: 14),
+      );
+    }
   }
 
   Widget _buildBookingProposalCard(
@@ -650,43 +975,342 @@ class _ChatScreenState extends State<ChatScreen> {
         color: Theme.of(context).cardColor,
         border: Border(top: BorderSide(color: context.isDarkMode ? const Color(0x11FFFFFF) : const Color(0x0A000000))),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: TextField(
-              controller: _msgController,
-              onSubmitted: (_) => _sendMessage(),
-              style: TextStyle(color: context.textColor, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'Type your message...',
-                hintStyle: TextStyle(color: context.textColor30),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                filled: true,
-                fillColor: Theme.of(context).scaffoldBackgroundColor,
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: const BorderSide(color: Colors.transparent),
+          if (_selectedImagePath != null) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Row(
+                children: [
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          File(_selectedImagePath!),
+                          height: 70,
+                          width: 70,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedImagePath = null;
+                            });
+                          },
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(4),
+                            child: const Icon(
+                              Icons.close_rounded,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Image selected. Tap send to share.',
+                      style: TextStyle(
+                        color: context.textColor54,
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _msgController,
+                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: (text) {
+                    setState(() {});
+                  },
+                  onSubmitted: (_) => _sendMessage(),
+                  style: TextStyle(color: context.textColor, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Type your message...',
+                    hintStyle: TextStyle(color: context.textColor30),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    filled: true,
+                    fillColor: Theme.of(context).scaffoldBackgroundColor,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(color: Colors.transparent),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(color: Color(0xFF536DFE)),
+                    ),
+                    suffixIcon: _msgController.text.isNotEmpty
+                        ? null
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: Icon(Icons.image_outlined, color: context.textColor54, size: 20),
+                                onPressed: _pickImage,
+                              ),
+                              // const SizedBox(width: 6),
+                              _isRetrievingLocation
+                                  ? SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.0,
+                                        color: context.textColor54,
+                                      ),
+                                    )
+                                  : IconButton(
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      icon: Icon(Icons.location_on_outlined, color: context.textColor54, size: 20),
+                                      onPressed: _sendLocation,
+                                    ),
+                              const SizedBox(width: 5),
+                            ],
+                          ),
+                  ),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: const BorderSide(color: Color(0xFF536DFE)),
+              ),
+              const SizedBox(width: 10),
+              GestureDetector(
+                onTap: _sendMessage,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF536DFE),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.send_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openImagePreview(BuildContext context, String url, {bool isLocal = false}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _FullScreenImagePreview(
+          imageUrl: url,
+          isLocal: isLocal,
+        ),
+      ),
+    );
+  }
+}
+
+class _LocationBubbleContent extends StatefulWidget {
+  final String mapsUrl;
+  final bool isMe;
+
+  const _LocationBubbleContent({
+    required this.mapsUrl,
+    required this.isMe,
+  });
+
+  @override
+  State<_LocationBubbleContent> createState() => _LocationBubbleContentState();
+}
+
+class _LocationBubbleContentState extends State<_LocationBubbleContent> {
+  static final Map<String, String> _addressCache = {};
+  String _address = 'Loading location...';
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveAddress();
+  }
+
+  Future<void> _resolveAddress() async {
+    if (_addressCache.containsKey(widget.mapsUrl)) {
+      if (mounted) {
+        setState(() {
+          _address = _addressCache[widget.mapsUrl]!;
+        });
+      }
+      return;
+    }
+
+    try {
+      final uri = Uri.tryParse(widget.mapsUrl);
+      if (uri != null) {
+        final query = uri.queryParameters['query'];
+        if (query != null) {
+          final parts = query.split(',');
+          if (parts.length == 2) {
+            final lat = double.tryParse(parts[0]);
+            final lng = double.tryParse(parts[1]);
+            if (lat != null && lng != null) {
+              final placemarks = await placemarkFromCoordinates(lat, lng);
+              if (placemarks.isNotEmpty) {
+                final place = placemarks.first;
+                final partsList = <String>[];
+                if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+                  partsList.add(place.subLocality!);
+                }
+                if (place.locality != null && place.locality!.isNotEmpty) {
+                  partsList.add(place.locality!);
+                }
+                if (partsList.isEmpty) {
+                  if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+                    partsList.add(place.administrativeArea!);
+                  } else if (place.country != null && place.country!.isNotEmpty) {
+                    partsList.add(place.country!);
+                  }
+                }
+                
+                final addressStr = partsList.isNotEmpty ? partsList.join(', ') : 'Location Shared';
+                _addressCache[widget.mapsUrl] = addressStr;
+                if (mounted) {
+                  setState(() {
+                    _address = addressStr;
+                  });
+                }
+                return;
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {
+      // Fallback
+    }
+
+    if (mounted) {
+      setState(() {
+        _address = 'Location Shared';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMe = widget.isMe;
+    final primaryColor = isMe ? Colors.white : const Color(0xFF536DFE);
+    final secondaryColor = isMe ? Colors.white.withValues(alpha: 0.7) : Colors.grey;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.location_on_rounded,
+              color: primaryColor,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                _address,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: primaryColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
                 ),
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          widget.mapsUrl,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: secondaryColor,
+            fontSize: 11,
+            decoration: TextDecoration.underline,
           ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: _sendMessage,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: const BoxDecoration(
-                color: Color(0xFF536DFE),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.send_rounded,
-                color: Colors.white,
-                size: 18,
+        ),
+      ],
+    );
+  }
+}
+
+class _FullScreenImagePreview extends StatelessWidget {
+  final String imageUrl;
+  final bool isLocal;
+
+  const _FullScreenImagePreview({
+    required this.imageUrl,
+    this.isLocal = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          Center(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: isLocal
+                  ? Image.file(
+                      File(imageUrl),
+                      fit: BoxFit.contain,
+                    )
+                  : CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.contain,
+                      placeholder: (context, url) => const CircularProgressIndicator(color: Colors.white),
+                      errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.white, size: 50),
+                    ),
+            ),
+          ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 10,
+            right: 16,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(8),
+                child: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
             ),
           ),
