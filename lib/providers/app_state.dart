@@ -612,7 +612,7 @@ class AppState extends ChangeNotifier {
     return newThread;
   }
 
-  void sendChatMessage(String threadId, String text, {bool isBookingProposal = false, double? ratePerKm}) async {
+  Future<String> sendChatMessage(String threadId, String text, {bool isBookingProposal = false, double? ratePerKm}) async {
     final msg = ChatMessage(
       senderId: currentGmail ?? 'unknown@gmail.com',
       text: text,
@@ -622,7 +622,7 @@ class AppState extends ChangeNotifier {
       ratePerKm: ratePerKm,
     );
 
-    await FirebaseFirestore.instance
+    final docRef = await FirebaseFirestore.instance
         .collection('chats')
         .doc(threadId)
         .collection('messages')
@@ -675,6 +675,8 @@ class AppState extends ChangeNotifier {
     } catch (_) {
       // Notification failure should never block message delivery
     }
+
+    return docRef.id;
   }
 
   void updateBookingStatus(String threadId, int messageIndex, BookingStatus status) async {
