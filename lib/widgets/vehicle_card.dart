@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/vehicle.dart';
 import '../providers/app_state.dart';
 import '../screens/customer/vehicle_detail_screen.dart';
@@ -106,27 +107,47 @@ class _VehicleCardState extends State<VehicleCard> {
                 Positioned(
                   top: 12,
                   left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xCC0F172A),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0x33FFFFFF)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.location_on, color: Color(0xFFEF4444), size: 12),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${distance.toStringAsFixed(1)} Km away',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final lat = widget.vehicle.latitude;
+                      final lng = widget.vehicle.longitude;
+                      final address = widget.vehicle.address;
+                      Uri uri;
+                      if (lat != 0.0 || lng != 0.0) {
+                        uri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$lat,$lng");
+                      } else if (address != null && address.isNotEmpty) {
+                        uri = Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}");
+                      } else {
+                        return;
+                      }
+                      try {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      } catch (e) {
+                        debugPrint(e.toString());
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xCC0F172A),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0x33FFFFFF)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.location_on, color: Color(0xFFEF4444), size: 12),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${distance.toStringAsFixed(1)} Km away',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
