@@ -33,6 +33,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
   final TextEditingController _searchController = TextEditingController();
   String? _customTabSelection;
 
+  late final Stream<QuerySnapshot> _shopsStream;
+  late final Stream<QuerySnapshot> _driversStream;
+  late final Stream<QuerySnapshot> _serviceCentersStream;
+
   String _selectedAddTab = 'Vehicle';
 
   // Form keys and controllers for custom vehicle addition
@@ -169,6 +173,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Initialize streams to prevent flicker and stream resets on rebuild
+    _shopsStream = FirebaseFirestore.instance.collection('shops').orderBy('timestamp', descending: true).snapshots();
+    _driversStream = FirebaseFirestore.instance.collection('drivers').orderBy('timestamp', descending: true).snapshots();
+    _serviceCentersStream = FirebaseFirestore.instance.collection('service_centers').orderBy('timestamp', descending: true).snapshots();
+
     // Simulate automatic GPS location activation on startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initLocationFlow();
@@ -2541,7 +2550,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
 
   Widget _buildShopsList(AppState appState) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('shops').orderBy('timestamp', descending: true).snapshots(),
+      stream: _shopsStream,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFF536DFE)));
@@ -2725,7 +2734,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
 
   Widget _buildDriversList(AppState appState) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('drivers').orderBy('timestamp', descending: true).snapshots(),
+      stream: _driversStream,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFF536DFE)));
@@ -2939,7 +2948,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
 
   Widget _buildServiceCentersList(AppState appState) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('service_centers').orderBy('timestamp', descending: true).snapshots(),
+      stream: _serviceCentersStream,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFF536DFE)));
