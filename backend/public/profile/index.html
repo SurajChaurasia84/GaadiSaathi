@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GaadiSaathi - Profile Shared</title>
+  <!-- Google Fonts: Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #536DFE;
+      --primary-hover: #4355db;
+      --bg-dark: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      background: radial-gradient(circle at top right, #1e1b4b 0%, var(--bg-dark) 60%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    /* Ambient background glowing circles */
+    .glow-1 {
+      position: absolute;
+      top: -10%;
+      left: -10%;
+      width: 40vw;
+      height: 40vw;
+      background: radial-gradient(circle, rgba(83, 109, 254, 0.15) 0%, rgba(0,0,0,0) 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .glow-2 {
+      position: absolute;
+      bottom: -10%;
+      right: -10%;
+      width: 50vw;
+      height: 50vw;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, rgba(0,0,0,0) 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 28px;
+      padding: 40px 32px;
+      width: 100%;
+      max-width: 440px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      z-index: 10;
+      animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .logo-container {
+      margin-bottom: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 72px;
+      height: 72px;
+      background: linear-gradient(135deg, var(--primary) 0%, #818cf8 100%);
+      border-radius: 20px;
+      box-shadow: 0 10px 20px rgba(83, 109, 254, 0.3);
+    }
+
+    .logo-icon {
+      font-size: 36px;
+      line-height: 1;
+    }
+
+    .title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .username-badge {
+      display: inline-block;
+      background: rgba(83, 109, 254, 0.15);
+      border: 1px solid rgba(83, 109, 254, 0.3);
+      color: #a5b4fc;
+      padding: 6px 14px;
+      border-radius: 100px;
+      font-weight: 600;
+      font-size: 15px;
+      margin-bottom: 24px;
+    }
+
+    .message {
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 16px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 16px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      margin-bottom: 12px;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 8px 16px rgba(83, 109, 254, 0.2);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(83, 109, 254, 0.3);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .footer {
+      margin-top: 32px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.2);
+      z-index: 10;
+    }
+
+    /* Small auto redirecting text indicator */
+    .redirect-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #60a5fa;
+      margin-bottom: 20px;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(96, 165, 250, 0.2);
+      border-top-color: #60a5fa;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="glow-1"></div>
+  <div class="glow-2"></div>
+
+  <div class="card">
+    <div class="logo-container">
+      <!-- Mega Car Icon or clean custom text -->
+      <span class="logo-icon">🚗</span>
+    </div>
+    
+    <h1 class="title">GaadiSaathi Profile</h1>
+    <div class="username-badge" id="usernameBadge">@loading</div>
+
+    <div class="redirect-indicator" id="redirector">
+      <div class="spinner"></div>
+      <span>Opening in GaadiSaathi App...</span>
+    </div>
+
+    <p class="message">
+      If you have the GaadiSaathi app installed, it should have opened automatically. If it didn't open, tap the button below to proceed.
+    </p>
+
+    <a href="#" class="btn btn-primary" id="openAppBtn">Open in App</a>
+    <a href="https://gaadisaathi-backend.vercel.app/download" class="btn btn-secondary">Download App</a>
+  </div>
+
+  <div class="footer">
+    &copy; 2026 GaadiSaathi. All rights reserved.
+  </div>
+
+  <script>
+    // Extract query parameter 'u'
+    const urlParams = new URLSearchParams(window.location.search);
+    let username = urlParams.get('u') || '';
+    
+    // Clean up username if it starts with double @@
+    if (username.startsWith('@@')) {
+      username = username.substring(1);
+    } else if (username && !username.startsWith('@')) {
+      username = '@' + username;
+    }
+
+    // Set fallback if empty
+    if (!username) {
+      username = 'User';
+    }
+
+    // Update UI elements
+    const badge = document.getElementById('usernameBadge');
+    badge.textContent = username;
+
+    const deepLinkUrl = "gaadisaathi://profile?u=" + encodeURIComponent(username);
+    document.getElementById('openAppBtn').href = deepLinkUrl;
+
+    // Automatic redirect action
+    setTimeout(() => {
+      window.location.href = deepLinkUrl;
+      // Hide redirect indicator after a few seconds
+      setTimeout(() => {
+        const redirector = document.getElementById('redirector');
+        if (redirector) {
+          redirector.style.display = 'none';
+        }
+      }, 3000);
+    }, 500);
+  </script>
+</body>
+</html>
