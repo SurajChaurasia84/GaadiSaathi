@@ -9,10 +9,5 @@
       "source": "/profile",
       "destination": "/api/profile"
     }
-  ],
-  "functions": {
-    "api/**/*.js": {
-      "runtime": "nodejs20.x"
-    }
-  }
+  ]
 }
