@@ -3278,7 +3278,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
             },
             itemBuilder: (context, index) {
               final adData = _randomizedAds![index].data() as Map<String, dynamic>;
-              final photoUrl = adData['photoUrl'] as String? ?? '';
+              final photoUrl = (adData['adPhotoUrl'] ?? adData['photoUrl']) as String? ?? '';
               final title = adData['title'] as String? ?? 'Advertisement';
               final desc = adData['description'] as String? ?? '';
 
@@ -3420,7 +3420,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     final address = data['address'] as String? ?? 'Address';
     final ownerGmail = data['ownerGmail'] as String? ?? '';
     final ownerName = data['ownerName'] as String? ?? 'Advertiser';
-    final photoUrl = data['photoUrl'] as String? ?? '';
+    final photoUrl = (data['adPhotoUrl'] ?? data['photoUrl']) as String? ?? '';
     final lat = data['latitude'] as double? ?? 0.0;
     final lon = data['longitude'] as double? ?? 0.0;
 
@@ -3487,32 +3487,56 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
               const Divider(),
               const SizedBox(height: 12),
               // Advertiser Info
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: const Color(0xFF536DFE).withValues(alpha: 0.1),
-                    child: Text(
-                      ownerName.isNotEmpty ? ownerName[0].toUpperCase() : '?',
-                      style: const TextStyle(color: Color(0xFF536DFE), fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          ownerName,
-                          style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 14),
+              StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .where('email', isEqualTo: ownerGmail)
+                    .limit(1)
+                    .snapshots(),
+                builder: (context, userSnapshot) {
+                  String displayName = ownerName != 'Advertiser' ? ownerName : (ownerGmail.isNotEmpty ? ownerGmail.split('@').first : 'Advertiser');
+                  String? userPhoto;
+                  
+                  if (userSnapshot.hasData && userSnapshot.data!.docs.isNotEmpty) {
+                    final userData = userSnapshot.data!.docs.first.data();
+                    displayName = userData['name'] as String? ?? displayName;
+                    userPhoto = userData['photoUrl'] as String?;
+                  }
+
+                  final hasPhoto = userPhoto != null && userPhoto.isNotEmpty;
+                  final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
+
+                  return Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: const Color(0xFF536DFE).withValues(alpha: 0.1),
+                        backgroundImage: hasPhoto ? NetworkImage(userPhoto) : null,
+                        child: hasPhoto
+                            ? null
+                            : Text(
+                                initial,
+                                style: const TextStyle(color: Color(0xFF536DFE), fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayName,
+                              style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            Text(
+                              'Advertiser',
+                              style: TextStyle(color: context.textColor54, fontSize: 11),
+                            ),
+                          ],
                         ),
-                        Text(
-                          ownerGmail,
-                          style: TextStyle(color: context.textColor54, fontSize: 11),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 20),
               // Location / Address Row (clickable to Map)
