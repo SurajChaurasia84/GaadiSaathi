@@ -34,6 +34,20 @@
                 <action android:name="FLUTTER_NOTIFICATION_CLICK" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <!-- Custom Scheme Deep Link gaadisaathi://profile -->
+            <intent-filter android:label="filter_profile">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="gaadisaathi" android:host="profile" />
+            </intent-filter>
+            <!-- Universal Link App Link https://gaadisaathi-backend.vercel.app/profile -->
+            <intent-filter android:autoVerify="true" android:label="filter_profile_universal">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="gaadisaathi-backend.vercel.app" android:pathPrefix="/profile" />
+            </intent-filter>
         </activity>
         <!-- FCM default notification channel -->
         <meta-data
