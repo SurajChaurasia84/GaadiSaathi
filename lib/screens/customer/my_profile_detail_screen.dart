@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../chat_screen.dart';
 import 'vehicle_detail_screen.dart';
 import 'edit_profile_screen.dart';
 
 class MyProfileDetailScreen extends StatefulWidget {
-  const MyProfileDetailScreen({super.key});
+  final String? userEmail;
+  const MyProfileDetailScreen({super.key, this.userEmail});
 
   @override
   State<MyProfileDetailScreen> createState() => _MyProfileDetailScreenState();
@@ -32,204 +35,310 @@ class _MyProfileDetailScreenState extends State<MyProfileDetailScreen> with Sing
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    final userGmail = appState.currentGmail ?? '';
-    final name = appState.currentUserName ?? 'Guest User';
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'G';
-    final phone = appState.currentUserPhone ?? 'No phone added';
-    final address = appState.currentUserAddress ?? 'No address added';
+    final isMe = widget.userEmail == null || widget.userEmail == appState.currentGmail;
+    final targetEmail = widget.userEmail ?? appState.currentGmail ?? '';
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.textColor),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          userGmail.isNotEmpty ? userGmail.split('@').first : 'my_profile',
-          style: TextStyle(
-            color: context.textColor,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: targetEmail)
+          .limit(1)
+          .snapshots(),
+      builder: (context, userSnap) {
+        String name = 'Loading...';
+        String photoUrl = '';
+        String phone = 'No phone added';
+        String address = 'No address added';
+
+        if (isMe) {
+          name = appState.currentUserName ?? 'Guest User';
+          photoUrl = appState.currentUserPhotoUrl ?? '';
+          phone = appState.currentUserPhone ?? 'No phone added';
+          address = appState.currentUserAddress ?? 'No address added';
+        } else if (userSnap.hasData && userSnap.data!.docs.isNotEmpty) {
+          final userData = userSnap.data!.docs.first.data();
+          name = userData['name'] as String? ?? 'User';
+          photoUrl = userData['photoUrl'] as String? ?? '';
+          phone = userData['phone'] as String? ?? 'No phone added';
+          address = userData['address'] as String? ?? 'No address added';
+        }
+
+        final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.textColor),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: Text(
+              targetEmail.isNotEmpty ? targetEmail.split('@').first : 'profile',
+              style: TextStyle(
+                color: context.textColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.share_rounded, color: context.textColor),
+                onPressed: () {
+                  final username = targetEmail.split('@').first;
+                  // ignore: deprecated_member_use
+                  Share.share(
+                    'Check out this profile on GaadiSaathi!\n'
+                    'Name: $name\n'
+                    'Link: gaadisaathi://profile?u=@$username'
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
-        ),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('vehicles').where('ownerGmail', isEqualTo: userGmail).snapshots(),
-        builder: (context, vehicleSnap) {
-          final vehicleCount = vehicleSnap.hasData ? vehicleSnap.data!.docs.length : 0;
-
-          return StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('shops').where('ownerGmail', isEqualTo: userGmail).snapshots(),
-            builder: (context, shopSnap) {
-              final shopCount = shopSnap.hasData ? shopSnap.data!.docs.length : 0;
+          body: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('vehicles').where('ownerGmail', isEqualTo: targetEmail).snapshots(),
+            builder: (context, vehicleSnap) {
+              final vehicleCount = vehicleSnap.hasData ? vehicleSnap.data!.docs.length : 0;
 
               return StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('service_centers').where('ownerGmail', isEqualTo: userGmail).snapshots(),
-                builder: (context, serviceSnap) {
-                  final serviceCount = serviceSnap.hasData ? serviceSnap.data!.docs.length : 0;
+                stream: FirebaseFirestore.instance.collection('shops').where('ownerGmail', isEqualTo: targetEmail).snapshots(),
+                builder: (context, shopSnap) {
+                  final shopCount = shopSnap.hasData ? shopSnap.data!.docs.length : 0;
 
                   return StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance.collection('ads').where('ownerGmail', isEqualTo: userGmail).snapshots(),
-                    builder: (context, adSnap) {
-                      final adCount = adSnap.hasData ? adSnap.data!.docs.length : 0;
+                    stream: FirebaseFirestore.instance.collection('service_centers').where('ownerGmail', isEqualTo: targetEmail).snapshots(),
+                    builder: (context, serviceSnap) {
+                      final serviceCount = serviceSnap.hasData ? serviceSnap.data!.docs.length : 0;
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Instagram Profile Header
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                      return StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance.collection('ads').where('ownerGmail', isEqualTo: targetEmail).snapshots(),
+                        builder: (context, adSnap) {
+                          final adCount = adSnap.hasData ? adSnap.data!.docs.length : 0;
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Instagram Profile Header
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Avatar
-                                    CircleAvatar(
-                                      radius: 40,
-                                      backgroundColor: const Color(0xFF536DFE),
-                                      backgroundImage: appState.currentUserPhotoUrl != null && appState.currentUserPhotoUrl!.isNotEmpty
-                                          ? NetworkImage(appState.currentUserPhotoUrl!)
-                                          : null,
-                                      child: appState.currentUserPhotoUrl != null && appState.currentUserPhotoUrl!.isNotEmpty
-                                          ? null
-                                          : Text(
-                                              initial,
-                                              style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
-                                            ),
+                                    Row(
+                                      children: [
+                                        // Avatar
+                                        CircleAvatar(
+                                          radius: 40,
+                                          backgroundColor: const Color(0xFF536DFE),
+                                          backgroundImage: photoUrl.isNotEmpty
+                                              ? NetworkImage(photoUrl)
+                                              : null,
+                                          child: photoUrl.isNotEmpty
+                                              ? null
+                                              : Text(
+                                                  initial,
+                                                  style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                                                ),
+                                        ),
+                                        const SizedBox(width: 20),
+                                        // Stats Row
+                                        Expanded(
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                            children: [
+                                              _buildStatItem('Vehicles', vehicleCount),
+                                              _buildStatItem('Shops', shopCount),
+                                              _buildStatItem('Services', serviceCount),
+                                              _buildStatItem('Ads', adCount),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 20),
-                                    // Stats Row
-                                    Expanded(
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                        children: [
-                                          _buildStatItem('Vehicles', vehicleCount),
-                                          _buildStatItem('Shops', shopCount),
-                                          _buildStatItem('Services', serviceCount),
-                                          _buildStatItem('Ads', adCount),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                // User Bio Details
-                                Text(
-                                  name,
-                                  style: TextStyle(
-                                    color: context.textColor,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  userGmail,
-                                  style: TextStyle(
-                                    color: context.textColor54,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Row(
-                                  children: [
-                                    Icon(Icons.phone_rounded, size: 12, color: context.textColor30),
-                                    const SizedBox(width: 6),
+                                    const SizedBox(height: 16),
+                                    // User Bio Details
                                     Text(
-                                      phone,
-                                      style: TextStyle(color: context.textColor70, fontSize: 12),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Icon(Icons.location_on_rounded, size: 12, color: context.textColor30),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        address,
-                                        style: TextStyle(color: context.textColor70, fontSize: 12),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                // Edit Profile Button
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton(
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (context) => const EditProfileScreen()),
-                                      );
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      side: BorderSide(
-                                        color: context.isDarkMode ? const Color(0x2AFFFFFF) : const Color(0x1F000000),
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(vertical: 10),
-                                    ),
-                                    child: Text(
-                                      'Edit Profile',
+                                      name,
                                       style: TextStyle(
                                         color: context.textColor,
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 13,
+                                        fontSize: 14,
                                       ),
                                     ),
-                                  ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      targetEmail,
+                                      style: TextStyle(
+                                        color: context.textColor54,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.phone_rounded, size: 12, color: context.textColor30),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          phone,
+                                          style: TextStyle(color: context.textColor70, fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.location_on_rounded, size: 12, color: context.textColor30),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            address,
+                                            style: TextStyle(color: context.textColor70, fontSize: 12),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    // Edit Profile Button or Call/Chat buttons for other users
+                                    if (isMe)
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: OutlinedButton(
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                                            );
+                                          },
+                                          style: OutlinedButton.styleFrom(
+                                            side: BorderSide(
+                                              color: context.isDarkMode ? const Color(0x2AFFFFFF) : const Color(0x1F000000),
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(vertical: 10),
+                                          ),
+                                          child: Text(
+                                            'Edit Profile',
+                                            style: TextStyle(
+                                              color: context.textColor,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      Row(
+                                        children: [
+                                          if (phone.isNotEmpty && phone != 'No phone added')
+                                            Expanded(
+                                              child: ElevatedButton.icon(
+                                                onPressed: () async {
+                                                  final Uri launchUri = Uri(
+                                                    scheme: 'tel',
+                                                    path: phone,
+                                                  );
+                                                  await launchUrl(launchUri);
+                                                },
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: const Color(0xFF10B981),
+                                                  foregroundColor: Colors.white,
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                  elevation: 0,
+                                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                                ),
+                                                icon: const Icon(Icons.phone_rounded, size: 16),
+                                                label: const Text('Call', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                              ),
+                                            ),
+                                          if (phone.isNotEmpty && phone != 'No phone added') const SizedBox(width: 10),
+                                          Expanded(
+                                            child: ElevatedButton.icon(
+                                              onPressed: () {
+                                                final dummyVehicle = Vehicle(
+                                                  id: 'profile_chat',
+                                                  ownerName: name,
+                                                  ownerGmail: targetEmail,
+                                                  type: VehicleType.car,
+                                                  model: 'Profile Chat',
+                                                  insidePhotoUrl: '',
+                                                  outsidePhotoUrl: '',
+                                                  ratePerKm: 0.0,
+                                                  isServiceOn: true,
+                                                  latitude: 0.0,
+                                                  longitude: 0.0,
+                                                  phoneNumber: phone,
+                                                  address: address,
+                                                );
+                                                final thread = appState.getOrCreateThread(dummyVehicle);
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) => ChatScreen(threadId: thread.threadId),
+                                                  ),
+                                                );
+                                              },
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: const Color(0xFF536DFE),
+                                                foregroundColor: Colors.white,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                elevation: 0,
+                                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                              ),
+                                              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                                              label: const Text('Chat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
-                          const Divider(height: 1, thickness: 0.5),
-                          // Tab Bar
-                          TabBar(
-                            controller: _tabController,
-                            indicatorColor: context.textColor,
-                            labelColor: const Color(0xFF536DFE),
-                            unselectedLabelColor: context.textColor30,
-                            tabs: const [
-                              Tab(icon: Icon(Icons.directions_car_filled_outlined, size: 22)),
-                              Tab(icon: Icon(Icons.storefront_outlined, size: 22)),
-                              Tab(icon: Icon(Icons.build_circle_outlined, size: 22)),
-                              Tab(icon: Icon(Icons.featured_play_list_outlined, size: 22)),
+                              ),
+                              const Divider(height: 1, thickness: 0.5),
+                              // Tab Bar
+                              TabBar(
+                                controller: _tabController,
+                                indicatorColor: context.textColor,
+                                labelColor: const Color(0xFF536DFE),
+                                unselectedLabelColor: context.textColor30,
+                                tabs: const [
+                                  Tab(icon: Icon(Icons.directions_car_filled_outlined, size: 22)),
+                                  Tab(icon: Icon(Icons.storefront_outlined, size: 22)),
+                                  Tab(icon: Icon(Icons.build_circle_outlined, size: 22)),
+                                  Tab(icon: Icon(Icons.featured_play_list_outlined, size: 22)),
+                                ],
+                              ),
+                              const Divider(height: 1, thickness: 0.5),
+                              // Tab Views
+                              Expanded(
+                                child: TabBarView(
+                                  controller: _tabController,
+                                  children: [
+                                    _buildVehiclesTab(vehicleSnap),
+                                    _buildShopsTab(shopSnap),
+                                    _buildServicesTab(serviceSnap),
+                                    _buildAdsTab(adSnap),
+                                  ],
+                                ),
+                              ),
                             ],
-                          ),
-                          const Divider(height: 1, thickness: 0.5),
-                          // Tab Views
-                          Expanded(
-                            child: TabBarView(
-                              controller: _tabController,
-                              children: [
-                                _buildVehiclesTab(vehicleSnap),
-                                _buildShopsTab(shopSnap),
-                                _buildServicesTab(serviceSnap),
-                                _buildAdsTab(adSnap),
-                              ],
-                            ),
-                          ),
-                        ],
+                          );
+                        },
                       );
                     },
                   );
                 },
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
