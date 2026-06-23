@@ -54,14 +54,8 @@
     }
 
     @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     /* Header Section */
@@ -84,9 +78,7 @@
       box-shadow: 0 10px 20px -5px rgba(83, 109, 254, 0.4);
     }
 
-    .logo-icon {
-      font-size: 32px;
-    }
+    .logo-icon { font-size: 32px; }
 
     .header h1 {
       font-size: 28px;
@@ -94,7 +86,9 @@
       letter-spacing: -0.5px;
       background: linear-gradient(to right, #ffffff, #c084fc);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
+      color: transparent;
       margin-bottom: 8px;
     }
 
@@ -105,13 +99,9 @@
     }
 
     /* Policy Content */
-    .policy-content {
-      font-size: 14px;
-    }
+    .policy-content { font-size: 14px; }
 
-    .section {
-      margin-bottom: 32px;
-    }
+    .section { margin-bottom: 32px; }
 
     .section h2 {
       font-size: 18px;
@@ -200,7 +190,7 @@
     /* Responsive / Mobile view styling */
     @media (max-width: 600px) {
       body {
-        background: #0f172a; /* Solid dark color, no gradient background on small screen */
+        background: #0f172a;
         padding: 0;
         align-items: flex-start;
       }
@@ -212,23 +202,15 @@
         box-shadow: none;
         border-radius: 0;
         border: none;
-        background: #0f172a; /* Match the body background */
+        background: #0f172a;
         padding: 32px 20px;
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
       }
 
-      .header h1 {
-        font-size: 24px;
-      }
-      
-      .section h2 {
-        font-size: 16px;
-      }
-
-      .section p, .section ul li {
-        font-size: 13.5px;
-      }
+      .header h1 { font-size: 24px; }
+      .section h2 { font-size: 16px; }
+      .section p, .section ul li { font-size: 13.5px; }
     }
   </style>
 </head>
@@ -240,65 +222,85 @@
         <span class="logo-icon">🚗</span>
       </div>
       <h1>GaadiSaathi Privacy Policy</h1>
-      <p>Effective Date: June 12, 2026</p>
+      <p>Effective Date: June 23, 2026</p>
     </div>
 
     <div class="policy-content">
       <div class="section">
         <h2>1. Introduction</h2>
-        <p>Welcome to <strong>GaadiSaathi</strong> (referenced as "we", "us", "our", or the "App"), a peer-to-peer vehicle sharing and rental platform. We respect your privacy and are committed to protecting the personal data of both our vehicle owners and customers. This Privacy Policy details the types of information we collect, how we process it, and the security measures in place to safeguard your data.</p>
+        <p>Welcome to <strong>GaadiSaathi</strong> (referenced as "we", "us", "our", or the "App"), a peer-to-peer vehicle sharing, rental, and local services platform. We respect your privacy and are committed to protecting the personal data of all our users — vehicle owners, customers, shop owners, drivers, service center operators, and advertisers. This Privacy Policy details the types of information we collect, how we process it, and the security measures in place to safeguard your data.</p>
       </div>
 
       <div class="section">
         <h2>2. Information We Collect</h2>
-        <p>To deliver a secure, localized, and reliable vehicle rental experience, we collect the following categories of data:</p>
+        <p>To deliver a secure, localized, and reliable experience, we collect the following categories of data:</p>
         <ul>
           <li><strong>Account Information:</strong> When you authenticate via Google Sign-In or Firebase Auth, we securely retrieve your Gmail address, profile name, and profile picture URL.</li>
-          <li><strong>Profile Details:</strong> Contact information provided by you, including your phone number and billing/pickup address.</li>
-          <li><strong>Location Information:</strong> GPS latitude and longitude coordinates. This is required for nearby vehicle discovery, calculating distances between renters and owners, and location reverse-geocoding.</li>
-          <li><strong>Vehicle Details & Photos:</strong> When registering a vehicle, we collect details such as model name, category, pricing rate per kilometer, and user-provided inside/outside vehicle photos.</li>
-          <li><strong>Communication Data:</strong> In-app chat messages, booking invoices, and proposal statuses exchanged between renters and owners.</li>
-          <li><strong>Device Tokens:</strong> Firebase Cloud Messaging (FCM) tokens utilized to send real-time push notifications regarding booking requests and messages.</li>
+          <li><strong>Profile Details:</strong> Contact information provided by you, including your phone number and address. Your profile can be shared publicly via a unique profile link.</li>
+          <li><strong>Location Information:</strong> GPS latitude and longitude coordinates. This is required for nearby discovery of vehicles, shops, drivers, and service centers, as well as calculating distances.</li>
+          <li><strong>Vehicle Details &amp; Photos:</strong> When registering a vehicle, we collect details such as model name, category, pricing rate, and user-provided vehicle photos.</li>
+          <li><strong>Shop Listings:</strong> Shop name, owner name, phone number, address, location coordinates, and shop/product photos.</li>
+          <li><strong>Driver Profiles:</strong> Driver name, phone number, address, location coordinates, and driving license photo.</li>
+          <li><strong>Service Center Listings:</strong> Service center name, phone number, and address.</li>
+          <li><strong>Advertisement Data:</strong> Ad title, description, phone number, address, location coordinates, and ad banner image.</li>
+          <li><strong>Communication Data:</strong> In-app chat messages (text, images, location pins), booking invoices, and proposal statuses exchanged between users.</li>
+          <li><strong>Reviews &amp; Ratings:</strong> Star ratings and written reviews submitted by users for vehicles, including reviewer name and timestamp.</li>
+          <li><strong>Device Tokens:</strong> Firebase Cloud Messaging (FCM) tokens used to send real-time push notifications for messages and bookings.</li>
         </ul>
       </div>
 
       <div class="section">
         <h2>3. How We Use Your Information</h2>
-        <p>The collected information is processed for the following essential business purposes:</p>
+        <p>The collected information is processed for the following essential purposes:</p>
         <ul>
-          <li><strong>Nearby Vehicle Search:</strong> Calculating real-time distances between customer location coordinates and owner vehicles to show relevant vehicles within a 5.0 Km search radius.</li>
-          <li><strong>Facilitating Rental Bookings:</strong> Connecting customers and owners via chat threads and letting them establish mutual booking invoices at direct pricing.</li>
-          <li><strong>Media Management:</strong> Hosting vehicle photos securely on Cloudinary to display accurate previews to other users.</li>
-          <li><strong>Push Notifications:</strong> Delivering instant notifications for incoming messages and booking proposals.</li>
+          <li><strong>Nearby Discovery:</strong> Calculating real-time distances between your location and listed vehicles, shops, drivers, and service centers to show relevant results.</li>
+          <li><strong>Rental Bookings:</strong> Connecting customers and owners via chat threads and facilitating mutual booking invoices.</li>
+          <li><strong>In-App Messaging:</strong> Enabling real-time text, image, and location sharing between users in private chat threads.</li>
+          <li><strong>Profile Sharing:</strong> Generating shareable profile links (e.g. <code>gaadisaathi-backend.vercel.app/profile?u=@username</code>) that display your public listings in a read-only view for other users.</li>
+          <li><strong>Reviews &amp; Ratings:</strong> Displaying community-generated ratings and feedback for vehicles to help customers make informed decisions.</li>
+          <li><strong>Advertisements:</strong> Displaying user-submitted promotional ads in a rotating banner on the home screen to support local businesses.</li>
+          <li><strong>Media Management:</strong> Hosting photos (vehicles, shops, drivers, ads) securely on Cloudinary to display accurate previews.</li>
+          <li><strong>Push Notifications:</strong> Delivering instant notifications for incoming messages and booking proposals via FCM.</li>
+          <li><strong>Google Mobile Ads:</strong> Showing banner advertisements from Google AdMob to support app sustainability. AdMob may collect device data as per Google's privacy policy.</li>
         </ul>
       </div>
 
       <div class="section">
-        <h2>4. Data Storage & Third-Party Services</h2>
+        <h2>4. Data Storage &amp; Third-Party Services</h2>
         <p>Your data is processed and stored securely using industry-standard cloud partners:</p>
         <ul>
-          <li><strong>Firebase Auth & Firestore:</strong> Secure user authentication, chat threads, messages history, and vehicle documents are stored in real-time Firestore database.</li>
-          <li><strong>Cloudinary:</strong> User-selected inside and outside photos of vehicles are uploaded directly to Cloudinary storage. We do not store physical media on our own servers.</li>
-          <li><strong>Vercel Backend Proxy:</strong> Custom API functions are deployed on Vercel serverless environment to handle secure tasks (such as signed Cloudinary image deletion requests and FCM push notifications routing).</li>
+          <li><strong>Firebase Auth &amp; Firestore:</strong> Secure user authentication, profile data, chat threads, messages, vehicle documents, shop listings, driver profiles, service centers, ads, and reviews are stored in Firestore.</li>
+          <li><strong>Cloudinary:</strong> User-selected photos for vehicles, shops, drivers, and ads are uploaded directly to Cloudinary. We do not store physical media on our own servers.</li>
+          <li><strong>Vercel Backend Proxy:</strong> Custom API functions deployed on Vercel serverless environment handle secure tasks such as signed Cloudinary image deletion and FCM push notification routing.</li>
+          <li><strong>Google AdMob:</strong> Banner ads are served through Google's AdMob SDK. Google may collect usage and device identifiers as described in the <a href="https://policies.google.com/privacy" target="_blank" style="color: var(--primary-color);">Google Privacy Policy</a>.</li>
         </ul>
       </div>
 
       <div class="section">
-        <h2>5. Data Control & Deletion</h2>
+        <h2>5. Profile Sharing &amp; Public Visibility</h2>
+        <p>GaadiSaathi allows users to share their profile via a unique link. When a profile link is shared:</p>
+        <div class="highlight-box">
+          <p><strong>Read-Only Public View:</strong> Recipients who tap the link will see your public profile — including your name, profile photo, listed vehicles, shops, service centers, and ads — in a read-only view. They cannot edit or modify your data. The "Edit Profile" button is hidden for external viewers.</p>
+        </div>
+        <p>Only you can edit your own profile and listings when signed in to your account.</p>
+      </div>
+
+      <div class="section">
+        <h2>6. Data Control &amp; Deletion</h2>
         <p>You maintain full ownership of the data you list on the platform:</p>
         <div class="highlight-box">
-          <p><strong>Integrated Deletion Sync:</strong> When you delete a registered vehicle from your history, GaadiSaathi executes concurrent API requests to immediately delete the Firestore vehicle document and wipe out its corresponding inside and outside photos from Cloudinary. Default preset images are ignored to preserve storage integrity.</p>
+          <p><strong>Integrated Deletion Sync:</strong> When you delete a registered vehicle, GaadiSaathi executes concurrent requests to immediately delete the Firestore document and wipe the corresponding photos from Cloudinary. Default preset images are ignored to preserve storage integrity.</p>
         </div>
         <p>You can edit your contact phone number, address, and profile details anytime via the Edit Profile screen. Location access can also be toggled off directly from your device settings.</p>
       </div>
 
       <div class="section">
-        <h2>6. Security Measures</h2>
-        <p>We enforce strict security rules within Firebase Firestore to ensure users can only access chat threads that belong to them (using authenticated Google credentials checks). Server-side operations (like deleting Cloudinary assets) are protected using hidden environment API keys on Vercel proxy, preventing unauthorized external access.</p>
+        <h2>7. Security Measures</h2>
+        <p>We enforce strict security rules within Firebase Firestore to ensure users can only access chat threads that belong to them (using authenticated Google credential checks). Server-side operations such as deleting Cloudinary assets are protected using hidden environment API keys on Vercel proxy, preventing unauthorized external access. Profile sharing links expose only public listing data and never expose any authentication credentials or private messages.</p>
       </div>
 
       <div class="section">
-        <h2>7. Contact Us</h2>
+        <h2>8. Contact Us</h2>
         <p>If you have any questions, feedback, or data removal requests regarding this Privacy Policy, please contact us at:</p>
         <p>📧 Email: <a href="mailto:dhirendrasuman001@gmail.com" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">dhirendrasuman001@gmail.com</a></p>
       </div>
