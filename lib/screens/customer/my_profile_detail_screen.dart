@@ -90,8 +90,7 @@ class _MyProfileDetailScreenState extends State<MyProfileDetailScreen> with Sing
                   // ignore: deprecated_member_use
                   Share.share(
                     'Check out this profile on GaadiSaathi!\n'
-                    'Name: $name\n'
-                    'Link: gaadisaathi://profile?u=@$username'
+                    'https://gaadisaathi-backend.vercel.app/profile?u=@$username'
                   );
                 },
               ),
