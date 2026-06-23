@@ -3,15 +3,11 @@
   "rewrites": [
     {
       "source": "/.well-known/assetlinks.json",
-      "destination": "/public/.well-known/assetlinks.json"
+      "destination": "/api/assetlinks"
     },
     {
       "source": "/profile",
-      "destination": "/public/profile/index.html"
-    },
-    {
-      "source": "/api/:path*",
-      "destination": "/api/:path*.js"
+      "destination": "/api/profile"
     }
   ],
   "functions": {
