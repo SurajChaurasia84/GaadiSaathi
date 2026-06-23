@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart' hide AppState;
@@ -704,9 +706,23 @@ class AppState extends ChangeNotifier {
   void preloadAd() {
     if (isAdLoading || isAdLoaded) return;
     isAdLoading = true;
+
+    final String adUnitId;
+    if (kReleaseMode) {
+      adUnitId = 'ca-app-pub-9356218156713758/4379704067';
+    } else {
+      // Google Mobile Ads standard test ad unit IDs
+      if (Platform.isAndroid) {
+        adUnitId = 'ca-app-pub-3940256099942544/6300978111';
+      } else if (Platform.isIOS) {
+        adUnitId = 'ca-app-pub-3940256099942544/2934735716';
+      } else {
+        adUnitId = 'ca-app-pub-3940256099942544/6300978111'; // Fallback
+      }
+    }
     
     preloadedBannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-9356218156713758/4379704067',
+      adUnitId: adUnitId,
       request: const AdRequest(),
       size: AdSize.banner,
       listener: BannerAdListener(
