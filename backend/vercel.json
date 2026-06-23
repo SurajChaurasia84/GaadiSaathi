@@ -1,27 +1,22 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
+      "source": "/.well-known/assetlinks.json",
+      "destination": "/public/.well-known/assetlinks.json"
     },
     {
-      "src": "public/**/*",
-      "use": "@vercel/static"
+      "source": "/profile",
+      "destination": "/public/profile/index.html"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/:path*.js"
     }
   ],
-  "routes": [
-    {
-      "src": "/.well-known/assetlinks.json",
-      "dest": "public/.well-known/assetlinks.json"
-    },
-    {
-      "src": "/profile",
-      "dest": "public/profile/index.html"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "api/$1.js"
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs20.x"
     }
-  ]
+  }
 }
