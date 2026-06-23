@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:app_links/app_links.dart';
 import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
 import '../../widgets/vehicle_card.dart';
@@ -36,6 +38,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
   late final Stream<QuerySnapshot> _shopsStream;
   late final Stream<QuerySnapshot> _driversStream;
   late final Stream<QuerySnapshot> _serviceCentersStream;
+
+  List<DocumentSnapshot>? _randomizedAds;
+  Timer? _adsTimer;
+  int _currentAdIndex = 0;
+  final PageController _adsPageController = PageController();
+
+  StreamSubscription<Uri>? _linkSubscription;
+  final AppLinks _appLinks = AppLinks();
 
   String _selectedAddTab = 'Vehicle';
 
@@ -178,6 +188,21 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     _driversStream = FirebaseFirestore.instance.collection('drivers').orderBy('timestamp', descending: true).snapshots();
     _serviceCentersStream = FirebaseFirestore.instance.collection('service_centers').orderBy('timestamp', descending: true).snapshots();
 
+    // Fetch and randomize ads on startup
+    FirebaseFirestore.instance.collection('ads').get().then((snapshot) {
+      if (mounted) {
+        final docs = snapshot.docs;
+        docs.shuffle(Random());
+        setState(() {
+          _randomizedAds = docs;
+        });
+        _startAdsAutoPlay();
+      }
+    });
+
+    // Initialize deep link handler
+    _initDeepLinking();
+
     // Simulate automatic GPS location activation on startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initLocationFlow();
@@ -211,6 +236,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     _adDescController.dispose();
     _adPhoneController.dispose();
     _adAddressController.dispose();
+    _adsTimer?.cancel();
+    _adsPageController.dispose();
+    _linkSubscription?.cancel();
     super.dispose();
   }
 
@@ -470,6 +498,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
               ),
             ),
           ),
+          const SizedBox(height: 16),
+          _buildAdsCarousel(),
           const SizedBox(height: 16),
 
           // Category Filter Tabs
@@ -3210,6 +3240,427 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
         ],
       ),
     );
+  }
+
+  void _startAdsAutoPlay() {
+    _adsTimer?.cancel();
+    _adsTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (_randomizedAds == null || _randomizedAds!.isEmpty) return;
+      if (_adsPageController.hasClients) {
+        final nextPage = (_currentAdIndex + 1) % _randomizedAds!.length;
+        _adsPageController.animateToPage(
+          nextPage,
+          duration: const Duration(milliseconds: 550),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  Widget _buildAdsCarousel() {
+    if (_randomizedAds == null || _randomizedAds!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 110,
+          child: PageView.builder(
+            controller: _adsPageController,
+            itemCount: _randomizedAds!.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentAdIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final adData = _randomizedAds![index].data() as Map<String, dynamic>;
+              final photoUrl = adData['photoUrl'] as String? ?? '';
+              final title = adData['title'] as String? ?? 'Advertisement';
+              final desc = adData['description'] as String? ?? '';
+
+              return GestureDetector(
+                onTap: () => _showAdDetailDialog(adData),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color: Theme.of(context).cardColor,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        photoUrl.isNotEmpty
+                            ? Image.network(
+                                photoUrl,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                color: const Color(0xFF536DFE).withValues(alpha: 0.1),
+                                child: const Icon(
+                                  Icons.campaign_rounded,
+                                  size: 32,
+                                  color: Color(0xFF536DFE),
+                                ),
+                              ),
+                        // Dark overlay gradient for text readability
+                        IgnorePointer(
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [
+                                  Colors.black87,
+                                  Colors.black38,
+                                  Colors.transparent,
+                                ],
+                                stops: [0.0, 0.5, 1.0],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Text Info
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF536DFE),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'PROMOTED',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (desc.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  desc,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 10,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        if (_randomizedAds!.length > 1) ...[
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              _randomizedAds!.length,
+              (index) => Container(
+                width: 5,
+                height: 5,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _currentAdIndex == index
+                      ? const Color(0xFF536DFE)
+                      : context.textColor30,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _showAdDetailDialog(Map<String, dynamic> data) {
+    final title = data['title'] as String? ?? 'Advertisement';
+    final desc = data['description'] as String? ?? '';
+    final phone = data['phoneNumber'] as String? ?? '';
+    final address = data['address'] as String? ?? 'Address';
+    final ownerGmail = data['ownerGmail'] as String? ?? '';
+    final ownerName = data['ownerName'] as String? ?? 'Advertiser';
+    final photoUrl = data['photoUrl'] as String? ?? '';
+    final lat = data['latitude'] as double? ?? 0.0;
+    final lon = data['longitude'] as double? ?? 0.0;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Top Drag Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: context.textColor30,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Ad Banner Image
+              if (photoUrl.isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(
+                    photoUrl,
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+              // Title
+              Text(
+                title,
+                style: TextStyle(
+                  color: context.textColor,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (desc.isNotEmpty) ...[
+                Text(
+                  desc,
+                  style: TextStyle(
+                    color: context.textColor70,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              const Divider(),
+              const SizedBox(height: 12),
+              // Advertiser Info
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: const Color(0xFF536DFE).withValues(alpha: 0.1),
+                    child: Text(
+                      ownerName.isNotEmpty ? ownerName[0].toUpperCase() : '?',
+                      style: const TextStyle(color: Color(0xFF536DFE), fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          ownerName,
+                          style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        Text(
+                          ownerGmail,
+                          style: TextStyle(color: context.textColor54, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              // Location / Address Row (clickable to Map)
+              if (address.isNotEmpty)
+                InkWell(
+                  onTap: () => _openMap(lat, lon, address),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            address,
+                            style: TextStyle(
+                              color: context.textColor54,
+                              fontSize: 13,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 24),
+              // Bottom CTA Action Buttons
+              Row(
+                children: [
+                  if (phone.isNotEmpty) ...[
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final Uri launchUri = Uri(
+                            scheme: 'tel',
+                            path: phone,
+                          );
+                          await launchUrl(launchUri);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.phone_rounded, size: 18),
+                        label: const Text('Call Advertiser', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  if (ownerGmail != Provider.of<AppState>(context, listen: false).currentGmail)
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          final dummyVehicle = Vehicle(
+                            id: data['id'] as String? ?? 'ad',
+                            ownerName: ownerName,
+                            ownerGmail: ownerGmail,
+                            type: VehicleType.car,
+                            model: title,
+                            insidePhotoUrl: '',
+                            outsidePhotoUrl: '',
+                            ratePerKm: 0.0,
+                            isServiceOn: true,
+                            latitude: lat,
+                            longitude: lon,
+                            phoneNumber: phone,
+                            address: address,
+                          );
+                          final thread = Provider.of<AppState>(context, listen: false).getOrCreateThread(dummyVehicle);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(threadId: thread.threadId),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF536DFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                        label: const Text('Chat Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _initDeepLinking() async {
+    // 1. Handle incoming deep link when app is cold-started (not running)
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        _handleIncomingUri(initialUri);
+      }
+    } catch (e) {
+      debugPrint('Failed to receive initial deep link: $e');
+    }
+
+    // 2. Handle incoming deep links when app is in background or running
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      _handleIncomingUri(uri);
+    }, onError: (err) {
+      debugPrint('Failed to receive stream deep link: $err');
+    });
+  }
+
+  void _handleIncomingUri(Uri uri) {
+    debugPrint('Received deep link: $uri');
+    
+    if ((uri.scheme == 'gaadisaathi' && uri.host == 'profile') ||
+        (uri.scheme == 'https' && uri.host == 'gaadisaathi-backend.vercel.app' && uri.path == '/profile')) {
+      final emailParam = uri.queryParameters['email'];
+      final usernameParam = uri.queryParameters['u'];
+
+      String? email;
+      if (emailParam != null && emailParam.isNotEmpty) {
+        email = emailParam;
+      } else if (usernameParam != null && usernameParam.startsWith('@')) {
+        final username = usernameParam.substring(1);
+        email = '$username@gmail.com';
+      }
+
+      if (email != null && email.isNotEmpty) {
+        // Navigate to read-only profile detail screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MyProfileDetailScreen(userEmail: email),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _openMap(double latitude, double longitude, String address) async {
