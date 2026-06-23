@@ -383,11 +383,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                           ]
                         : null,
               ),
-        body: _currentIndex == 0
-            ? _buildBrowseTab(appState)
-            : _currentIndex == 1
-                ? _buildAddRequestTab(appState)
-                : _buildProfileTab(appState),
+        body: IndexedStack(
+          index: _currentIndex,
+          children: [
+            _buildBrowseTab(appState),
+            _buildAddRequestTab(appState),
+            _buildProfileTab(appState),
+          ],
+        ),
         bottomNavigationBar: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
