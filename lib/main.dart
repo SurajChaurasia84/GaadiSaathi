@@ -100,7 +100,7 @@ class MyApp extends StatelessWidget {
     final appState = Provider.of<AppState>(context);
 
     return MaterialApp(
-      title: 'GaadiSaathi',
+      title: 'Gaadi Saathi',
       debugShowCheckedModeBanner: false,
       themeMode: appState.themeMode,
       theme: ThemeData(
