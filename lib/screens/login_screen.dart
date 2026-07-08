@@ -142,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 24),
               Center(
                 child: Text(
-                  'GaadiSaathi',
+                  'Gaadi Saathi',
                   style: TextStyle(
                     color: context.textColor,
                     fontSize: 32,
