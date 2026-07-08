@@ -12,7 +12,6 @@ import 'package:app_links/app_links.dart';
 import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
 import '../../widgets/vehicle_card.dart';
-import '../../widgets/premium_button.dart';
 import '../login_screen.dart';
 import '../chat_screen.dart';
 import 'inbox_screen.dart';
@@ -20,7 +19,10 @@ import 'edit_profile_screen.dart';
 import 'vehicle_history_screen.dart';
 import 'my_profile_detail_screen.dart';
 import 'shop_detail_screen.dart';
+import 'wallet_screen.dart';
+import 'driver_detail_screen.dart';
 import '../../widgets/ad_banner_widget.dart';
+import '../../widgets/cached_user_avatar.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -30,7 +32,6 @@ class CustomerHomeScreen extends StatefulWidget {
 }
 
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBindingObserver {
-  static const bool _showPremiumButton = false; // Toggle to true after publishing to reactivate Premium button
   int _currentIndex = 0;
   final TextEditingController _searchController = TextEditingController();
   String? _customTabSelection;
@@ -66,6 +67,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
   final _shopFormKey = GlobalKey<FormState>();
   final _shopNameController = TextEditingController();
   final _shopPhoneController = TextEditingController();
+  final _shopPriceController = TextEditingController();
   final _shopOwnerController = TextEditingController();
   final _shopAddressController = TextEditingController();
   String? _pickedShopPhotoPath;
@@ -75,6 +77,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
   final _driverNameController = TextEditingController();
   final _driverPhoneController = TextEditingController();
   final _driverAddressController = TextEditingController();
+  final _driverAboutController = TextEditingController();
   String? _pickedLicensePhotoPath;
 
   // Service Center properties
@@ -191,7 +194,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     // Fetch and randomize ads on startup
     FirebaseFirestore.instance.collection('ads').get().then((snapshot) {
       if (mounted) {
-        final docs = snapshot.docs;
+        final docs = snapshot.docs.where((doc) {
+          final data = doc.data();
+          final expiry = data['expiryTimestamp'] as int?;
+          if (expiry != null && expiry < DateTime.now().millisecondsSinceEpoch) {
+            return false;
+          }
+          return true;
+        }).toList();
         docs.shuffle(Random());
         setState(() {
           _randomizedAds = docs;
@@ -221,12 +231,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
 
     _shopNameController.dispose();
     _shopPhoneController.dispose();
+    _shopPriceController.dispose();
     _shopOwnerController.dispose();
     _shopAddressController.dispose();
 
     _driverNameController.dispose();
     _driverPhoneController.dispose();
     _driverAddressController.dispose();
+    _driverAboutController.dispose();
 
     _serviceCenterNameController.dispose();
     _serviceCenterPhoneController.dispose();
@@ -344,7 +356,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'GaadiSaathi',
+                            'Gaadi Saathi',
                             style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 18),
                           ),
                           const SizedBox(height: 2),
@@ -391,25 +403,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                       ),
                 actions: _currentIndex == 0
                     ? [
-                        if (_showPremiumButton) ...[
-                          const Center(
-                            child: PremiumButton(),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
+                        _buildWalletButton(context, appState),
+                        const SizedBox(width: 8),
                         _buildChatAction(context, appState),
                         const SizedBox(width: 8),
                       ]
-                    : _currentIndex == 2
-                        ? [
-                            if (_showPremiumButton) ...[
-                              const Center(
-                                child: PremiumButton(),
-                              ),
-                              const SizedBox(width: 16),
-                            ]
-                          ]
-                        : null,
+                    : null,
               ),
         body: IndexedStack(
           index: _currentIndex,
@@ -820,6 +819,18 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
             ),
             const SizedBox(height: 12),
             TextFormField(
+              controller: _shopPriceController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: TextStyle(color: context.textColor, fontSize: 14),
+              decoration: _buildInputDecoration('Price (₹)', Icons.currency_rupee_rounded),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) return 'Enter price';
+                if (double.tryParse(value) == null) return 'Enter a valid price';
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
               controller: _shopAddressController,
               maxLines: 1,
               style: TextStyle(color: context.textColor, fontSize: 14),
@@ -911,6 +922,28 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                   return;
                 }
 
+                // Check coin balance (10 coins required for shop listing)
+                if (appState.userCoins < 10) {
+                  messenger.clearSnackBars();
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: const Text('Insufficient Balance! Listing a shop costs ₹10.'),
+                      backgroundColor: Colors.orangeAccent,
+                      action: SnackBarAction(
+                        label: 'Recharge',
+                        textColor: Colors.white,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const WalletScreen()),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                  return;
+                }
+
                 messenger.clearSnackBars();
                 messenger.showSnackBar(
                   const SnackBar(
@@ -942,18 +975,33 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     return;
                   }
 
+                  // Deduct 10 coins
+                  final success = await appState.deductCoins(10, "Post: Listed Shop / Vehicle (${_shopNameController.text.trim()})");
+                  if (!success) {
+                    messenger.clearSnackBars();
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Failed to deduct coins. Please try again.'),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                    return;
+                  }
+
                   final docId = 'shop_${DateTime.now().millisecondsSinceEpoch}';
                   await FirebaseFirestore.instance.collection('shops').doc(docId).set({
                     'id': docId,
                     'shopName': _shopNameController.text.trim(),
                     'ownerName': _shopOwnerController.text.trim(),
                     'phoneNumber': _shopPhoneController.text.trim(),
+                    'price': double.tryParse(_shopPriceController.text.trim()) ?? 0.0,
                     'address': _shopAddressController.text.trim(),
                     'photoUrl': finalPhotoUrl,
                     'latitude': appState.customerLatitude + (Random().nextDouble() - 0.5) * 0.02,
                     'longitude': appState.customerLongitude + (Random().nextDouble() - 0.5) * 0.02,
                     'ownerGmail': appState.currentGmail ?? 'guest.customer@gmail.com',
                     'timestamp': DateTime.now().millisecondsSinceEpoch,
+                    'expiryTimestamp': DateTime.now().add(const Duration(days: 30)).millisecondsSinceEpoch,
                   });
 
                   messenger.clearSnackBars();
@@ -961,6 +1009,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     _shopNameController.clear();
                     _shopOwnerController.clear();
                     _shopPhoneController.clear();
+                    _shopPriceController.clear();
                     _shopAddressController.clear();
                     _pickedShopPhotoPath = null;
                   });
@@ -1056,6 +1105,15 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 _driverAddressController.text = appState.currentAddress;
               }),
               validator: (value) => value == null || value.trim().isEmpty ? 'Enter address' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _driverAboutController,
+              textCapitalization: TextCapitalization.sentences,
+              maxLines: 3,
+              style: TextStyle(color: context.textColor, fontSize: 14),
+              decoration: _buildInputDecoration('About / Bio details', Icons.info_outline_rounded),
+              validator: (value) => value == null || value.trim().isEmpty ? 'Enter bio/experience details' : null,
             ),
             const SizedBox(height: 16),
             Text(
@@ -1156,6 +1214,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     'driverName': _driverNameController.text.trim(),
                     'phoneNumber': _driverPhoneController.text.trim(),
                     'address': _driverAddressController.text.trim(),
+                    'about': _driverAboutController.text.trim(),
                     'licensePhotoUrl': finalPhotoUrl,
                     'latitude': appState.customerLatitude + (Random().nextDouble() - 0.5) * 0.02,
                     'longitude': appState.customerLongitude + (Random().nextDouble() - 0.5) * 0.02,
@@ -1168,6 +1227,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     _driverNameController.clear();
                     _driverPhoneController.clear();
                     _driverAddressController.clear();
+                    _driverAboutController.clear();
                     _pickedLicensePhotoPath = null;
                   });
 
@@ -1469,6 +1529,28 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                   return;
                 }
 
+                // Check coin balance (20 coins required for ad banner posting)
+                if (appState.userCoins < 20) {
+                  messenger.clearSnackBars();
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: const Text('Insufficient Balance! Posting an ad banner costs ₹20.'),
+                      backgroundColor: Colors.orangeAccent,
+                      action: SnackBarAction(
+                        label: 'Recharge',
+                        textColor: Colors.white,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const WalletScreen()),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                  return;
+                }
+
                 messenger.clearSnackBars();
                 messenger.showSnackBar(
                   const SnackBar(
@@ -1500,6 +1582,19 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     return;
                   }
 
+                  // Deduct 20 coins
+                  final success = await appState.deductCoins(20, "Post: Ad Banner (${_adTitleController.text.trim()})");
+                  if (!success) {
+                    messenger.clearSnackBars();
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Failed to deduct coins. Please try again.'),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                    return;
+                  }
+
                   final docId = 'ad_${DateTime.now().millisecondsSinceEpoch}';
                   await FirebaseFirestore.instance.collection('ads').doc(docId).set({
                     'id': docId,
@@ -1512,6 +1607,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     'longitude': appState.customerLongitude + (Random().nextDouble() - 0.5) * 0.02,
                     'ownerGmail': appState.currentGmail ?? 'guest.customer@gmail.com',
                     'timestamp': DateTime.now().millisecondsSinceEpoch,
+                    'expiryTimestamp': DateTime.now().add(const Duration(days: 30)).millisecondsSinceEpoch,
                   });
 
                   messenger.clearSnackBars();
@@ -1544,7 +1640,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              child: const Text('Add Ad Banner', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: const Text('Create Ad', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -2185,11 +2281,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
           const SizedBox(height: 10),
 
           // Settings List
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
+          Material(
+            color: Theme.of(context).cardColor,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000)),
+              side: BorderSide(
+                color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000),
+              ),
             ),
             child: Column(
               children: [
@@ -2227,6 +2326,18 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                       MaterialPageRoute(
                         builder: (context) => const VehicleHistoryScreen(),
                       ),
+                    );
+                  },
+                ),
+                _buildDivider(context),
+                _buildSettingTile(
+                  context: context,
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'My Wallet',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const WalletScreen()),
                     );
                   },
                 ),
@@ -2288,7 +2399,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
             child: Column(
               children: [
                 Text(
-                  'GaadiSaathi',
+                  'Gaadi Saathi',
                   style: TextStyle(
                     color: context.textColor,
                     fontSize: 14,
@@ -2298,7 +2409,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Version 1.0.0',
+                  'Version 1.1.0',
                   style: TextStyle(
                     color: context.textColor30,
                     fontSize: 11,
@@ -2380,11 +2491,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
   void _handleShareApp(BuildContext context) {
     SharePlus.instance.share(
       ShareParams(
-        text: 'Hey! Check out GaadiSaathi - Your ultimate peer-to-peer vehicle rental partner. '
+        text: 'Hey! Check out Gaadi Saathi - Your ultimate peer-to-peer vehicle rental partner. '
             'Rent cars, e-rickshaws, or loading vehicles easily or start earning by listing yours!\n\n'
             'Download now from Google Play Store:\n'
             'https://play.google.com/store/apps/details?id=com.gaadisaathi.rent.apps',
-        title: 'Share GaadiSaathi App',
+        title: 'Share Gaadi Saathi App',
       ),
     );
   }
@@ -2451,6 +2562,40 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
           ],
         );
       },
+    );
+  }
+
+  Widget _buildWalletButton(BuildContext context, AppState appState) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const WalletScreen()),
+        );
+      },
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: context.isDarkMode
+                ? const Color(0xFF2B1F00) // Deep dark gold tint
+                : const Color(0xFFFFFDE7), // Very light yellow
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFFFFB300), // Amber border
+              width: 1.5,
+            ),
+          ),
+          child: Text(
+            '₹${appState.userCoins}',
+            style: const TextStyle(
+              color: Color(0xFFFF8F00), // Amber text
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -2591,6 +2736,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
         final docs = snapshot.data!.docs;
         final filteredDocs = docs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
+          final expiry = data['expiryTimestamp'] as int?;
+          if (expiry != null && expiry < DateTime.now().millisecondsSinceEpoch) {
+            return false;
+          }
           if (appState.searchQuery.isNotEmpty) {
             final query = appState.searchQuery.toLowerCase();
             final nameMatch = (data['shopName'] as String? ?? '').toLowerCase().contains(query);
@@ -2612,7 +2761,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 0.78,
+            childAspectRatio: 0.75,
           ),
           itemCount: filteredDocs.length,
           itemBuilder: (context, index) {
@@ -2629,6 +2778,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     final shopName = data['shopName'] as String? ?? 'Shop Name';
     final ownerName = data['ownerName'] as String? ?? 'Owner Name';
     final ownerGmail = data['ownerGmail'] as String? ?? '';
+    final priceVal = data['price'];
+    
+    String price = '';
+    if (priceVal != null) {
+      if (priceVal is num) {
+        price = priceVal % 1 == 0 ? priceVal.toInt().toString() : priceVal.toString();
+      } else {
+        price = priceVal.toString();
+      }
+    }
 
     final initial = ownerName.isNotEmpty ? ownerName[0].toUpperCase() : '?';
 
@@ -2705,39 +2864,25 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (price.isNotEmpty && price != '0' && price != '0.0') ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '₹$price',
+                        style: const TextStyle(
+                          color: Color(0xFF10B981),
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 6),
                     // Poster's Profile Image + Name ONLY
                     Row(
                       children: [
-                        // Poster's Profile Image
-                        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                          stream: FirebaseFirestore.instance
-                              .collection('users')
-                              .where('email', isEqualTo: ownerGmail)
-                              .limit(1)
-                              .snapshots(),
-                          builder: (context, snapshot) {
-                            String? userPhoto;
-                            if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-                              userPhoto = snapshot.data!.docs.first.data()['photoUrl'] as String?;
-                            }
-                            final hasPhoto = userPhoto != null && userPhoto.isNotEmpty;
-                            return CircleAvatar(
-                              radius: 10,
-                              backgroundColor: const Color(0xFF536DFE).withValues(alpha: 0.1),
-                              backgroundImage: hasPhoto ? NetworkImage(userPhoto) : null,
-                              child: hasPhoto
-                                  ? null
-                                  : Text(
-                                      initial,
-                                      style: const TextStyle(
-                                        color: Color(0xFF536DFE),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 8,
-                                      ),
-                                    ),
-                            );
-                          },
+                        CachedUserAvatar(
+                          email: ownerGmail,
+                          radius: 10,
+                          fallbackInitial: initial,
                         ),
                         const SizedBox(width: 6),
                         // Poster's Name
@@ -2811,168 +2956,178 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     final lon = data['longitude'] as double? ?? 0.0;
     final distance = appState.getDistanceFromUser(lat, lon);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DriverDetailScreen(data: data),
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                width: 120,
-                color: context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                child: photoUrl != null && photoUrl.isNotEmpty
-                    ? Image.network(
-                        photoUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.badge_rounded, size: 40, color: Color(0xFF536DFE)),
-                      )
-                    : const Icon(Icons.badge_rounded, size: 40, color: Color(0xFF536DFE)),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(14.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              driverName,
-                              style: TextStyle(
-                                color: context.textColor,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          InkWell(
-                            onTap: () => _openMap(lat, lon, address),
-                            borderRadius: BorderRadius.circular(6),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF536DFE).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '${distance.toStringAsFixed(1)} Km',
-                                style: const TextStyle(
-                                  color: Color(0xFF536DFE),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      InkWell(
-                        onTap: () => _openMap(lat, lon, address),
-                        child: Row(
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 120,
+                  color: context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  child: photoUrl != null && photoUrl.isNotEmpty
+                      ? Image.network(
+                          photoUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.badge_rounded, size: 40, color: Color(0xFF536DFE)),
+                        )
+                      : const Icon(Icons.badge_rounded, size: 40, color: Color(0xFF536DFE)),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 12),
-                            const SizedBox(width: 4),
-                            Expanded(
+                            Flexible(
                               child: Text(
-                                address,
+                                driverName,
                                 style: TextStyle(
-                                  color: context.textColor54,
-                                  fontSize: 11,
-                                  decoration: TextDecoration.underline,
+                                  color: context.textColor,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            InkWell(
+                              onTap: () => _openMap(lat, lon, address),
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF536DFE).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${distance.toStringAsFixed(1)} Km',
+                                  style: const TextStyle(
+                                    color: Color(0xFF536DFE),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
-                      ),
-                      const Spacer(),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          if (phone.isNotEmpty)
-                            IconButton(
-                              onPressed: () async {
-                                final Uri launchUri = Uri(
-                                  scheme: 'tel',
-                                  path: phone,
-                                );
-                                await launchUrl(launchUri);
-                              },
-                              icon: const Icon(Icons.phone_rounded, color: Color(0xFF10B981), size: 18),
-                              style: IconButton.styleFrom(
-                                backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.1),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                padding: const EdgeInsets.all(8),
-                              ),
-                            ),
-                          const SizedBox(width: 8),
-                          if (driverGmail != appState.currentGmail)
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                final dummyVehicle = Vehicle(
-                                  id: data['id'] as String? ?? 'driver',
-                                  ownerName: driverName,
-                                  ownerGmail: driverGmail,
-                                  type: VehicleType.car,
-                                  model: 'Driver Profile',
-                                  insidePhotoUrl: '',
-                                  outsidePhotoUrl: '',
-                                  ratePerKm: 0.0,
-                                  isServiceOn: true,
-                                  latitude: lat,
-                                  longitude: lon,
-                                  phoneNumber: phone,
-                                  address: address,
-                                );
-                                final thread = appState.getOrCreateThread(dummyVehicle);
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ChatScreen(threadId: thread.threadId),
+                        const SizedBox(height: 4),
+                        InkWell(
+                          onTap: () => _openMap(lat, lon, address),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 12),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  address,
+                                  style: TextStyle(
+                                    color: context.textColor54,
+                                    fontSize: 11,
+                                    decoration: TextDecoration.underline,
                                   ),
-                                );
-                              },
-                              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 14),
-                              label: const Text('Chat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF536DFE),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
-                        ],
-                      ),
-                    ],
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (phone.isNotEmpty)
+                              IconButton(
+                                onPressed: () async {
+                                  final Uri launchUri = Uri(
+                                    scheme: 'tel',
+                                    path: phone,
+                                  );
+                                  await launchUrl(launchUri);
+                                },
+                                icon: const Icon(Icons.phone_rounded, color: Color(0xFF10B981), size: 18),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.1),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: const EdgeInsets.all(8),
+                                ),
+                              ),
+                            const SizedBox(width: 8),
+                            if (driverGmail != appState.currentGmail)
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  final dummyVehicle = Vehicle(
+                                    id: data['id'] as String? ?? 'driver',
+                                    ownerName: driverName,
+                                    ownerGmail: driverGmail,
+                                    type: VehicleType.car,
+                                    model: 'Driver Profile',
+                                    insidePhotoUrl: '',
+                                    outsidePhotoUrl: '',
+                                    ratePerKm: 0.0,
+                                    isServiceOn: true,
+                                    latitude: lat,
+                                    longitude: lon,
+                                    phoneNumber: phone,
+                                    address: address,
+                                  );
+                                  final thread = appState.getOrCreateThread(dummyVehicle);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ChatScreen(threadId: thread.threadId),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 14),
+                                label: const Text('Chat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF536DFE),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -3051,34 +3206,15 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 width: 100,
                 color: context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                 alignment: Alignment.center,
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: FirebaseFirestore.instance
-                      .collection('users')
-                      .where('email', isEqualTo: ownerGmail)
-                      .limit(1)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    String? userPhoto;
-                    if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-                      userPhoto = snapshot.data!.docs.first.data()['photoUrl'] as String?;
-                    }
-                    final hasPhoto = userPhoto != null && userPhoto.isNotEmpty;
-                    return CircleAvatar(
-                      radius: 32,
-                      backgroundColor: const Color(0xFF536DFE).withValues(alpha: 0.1),
-                      backgroundImage: hasPhoto ? NetworkImage(userPhoto) : null,
-                      child: hasPhoto
-                          ? null
-                          : Text(
-                              initial,
-                              style: const TextStyle(
-                                color: Color(0xFF536DFE),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                              ),
-                            ),
-                    );
-                  },
+                child: CachedUserAvatar(
+                  email: ownerGmail,
+                  radius: 32,
+                  fallbackInitial: initial,
+                  textStyle: const TextStyle(
+                    color: Color(0xFF536DFE),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
                 ),
               ),
               Expanded(
