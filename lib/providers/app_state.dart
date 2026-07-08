@@ -28,6 +28,7 @@ class AppState extends ChangeNotifier {
   String? currentUserPhotoUrl;
   String? currentUserPhone;
   String? currentUserAddress;
+  int userCoins = 0;
 
   // Location state
   bool isLocationOn = false;
@@ -141,6 +142,7 @@ class AppState extends ChangeNotifier {
             currentUserPhone = data['phone'] as String? ?? currentUserPhone;
             currentUserAddress = data['address'] as String? ?? currentUserAddress;
             currentUserPhotoUrl = data['photoUrl'] as String? ?? currentUserPhotoUrl;
+            userCoins = data['coins'] as int? ?? 0;
             
             _persistUserDataLocally();
             notifyListeners();
@@ -189,6 +191,65 @@ class AppState extends ChangeNotifier {
         }, SetOptions(merge: true));
       }
     } catch (_) {}
+  }
+
+  // Add coins to user's wallet (transactions subcollection logged)
+  Future<void> addCoins(int amount, String description) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snapshot = await transaction.get(docRef);
+        int currentCoins = 0;
+        if (snapshot.exists) {
+          currentCoins = snapshot.data()?['coins'] as int? ?? 0;
+        }
+        transaction.set(docRef, {'coins': currentCoins + amount}, SetOptions(merge: true));
+      });
+
+      // Log transaction
+      await docRef.collection('transactions').add({
+        'amount': amount,
+        'description': description,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+    }
+  }
+
+  // Deduct coins from user's wallet (returns true if successful)
+  Future<bool> deductCoins(int amount, String description) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    try {
+      bool success = false;
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snapshot = await transaction.get(docRef);
+        int currentCoins = 0;
+        if (snapshot.exists) {
+          currentCoins = snapshot.data()?['coins'] as int? ?? 0;
+        }
+        if (currentCoins >= amount) {
+          transaction.set(docRef, {'coins': currentCoins - amount}, SetOptions(merge: true));
+          success = true;
+        } else {
+          success = false;
+        }
+      });
+
+      if (success) {
+        // Log transaction
+        await docRef.collection('transactions').add({
+          'amount': -amount,
+          'description': description,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        });
+      }
+      return success;
+    } catch (_) {
+      return false;
+    }
   }
 
   // All mock vehicles in system
