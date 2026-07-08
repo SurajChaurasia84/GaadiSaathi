@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
 import '../chat_screen.dart';
+import '../../widgets/cached_user_avatar.dart';
 
 class ShopDetailScreen extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -22,6 +22,16 @@ class ShopDetailScreen extends StatelessWidget {
     final lon = data['longitude'] as double? ?? 0.0;
     final phone = data['phoneNumber'] as String? ?? '';
     final address = data['address'] as String? ?? 'Address';
+    final priceVal = data['price'];
+    
+    String price = '';
+    if (priceVal != null) {
+      if (priceVal is num) {
+        price = priceVal % 1 == 0 ? priceVal.toInt().toString() : priceVal.toString();
+      } else {
+        price = priceVal.toString();
+      }
+    }
     
     final distance = appState.getDistanceFromUser(lat, lon);
     final initial = ownerName.isNotEmpty ? ownerName[0].toUpperCase() : '?';
@@ -112,14 +122,31 @@ class ShopDetailScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: Text(
-                            shopName,
-                            style: TextStyle(
-                              color: context.textColor,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              height: 1.2,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                shopName,
+                                style: TextStyle(
+                                  color: context.textColor,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.2,
+                                ),
+                              ),
+                              if (price.isNotEmpty && price != '0' && price != '0.0') ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  '₹$price',
+                                  style: const TextStyle(
+                                    color: Color(0xFF10B981),
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -183,35 +210,16 @@ class ShopDetailScreen extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                            stream: FirebaseFirestore.instance
-                                .collection('users')
-                                .where('email', isEqualTo: ownerGmail)
-                                .limit(1)
-                                .snapshots(),
-                            builder: (context, snapshot) {
-                              String? userPhoto;
-                              if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-                                userPhoto = snapshot.data!.docs.first.data()['photoUrl'] as String?;
-                              }
-                              final hasPhoto = userPhoto != null && userPhoto.isNotEmpty;
-                              return CircleAvatar(
-                                radius: 24,
-                                backgroundColor: const Color(0xFF536DFE).withValues(alpha: 0.1),
-                                backgroundImage: hasPhoto ? NetworkImage(userPhoto) : null,
-                                child: hasPhoto
-                                    ? null
-                                    : Text(
-                                        initial,
-                                        style: const TextStyle(
-                                          color: Color(0xFF536DFE),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                              );
-                            },
-                          ),
+                           CachedUserAvatar(
+                             email: ownerGmail,
+                             radius: 24,
+                             fallbackInitial: initial,
+                             textStyle: const TextStyle(
+                               color: Color(0xFF536DFE),
+                               fontWeight: FontWeight.bold,
+                               fontSize: 16,
+                             ),
+                           ),
                           const SizedBox(width: 14),
                           Expanded(
                             child: Column(
