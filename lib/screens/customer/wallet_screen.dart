@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -450,7 +451,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         ),
                         itemBuilder: (context, index) {
                           final tx = txDocs[index].data() as Map<String, dynamic>;
-                          return _buildTransactionTile(context, tx);
+                          return _buildTransactionTile(context, tx, txDocs[index].id);
                         },
                       );
                     },
@@ -560,11 +561,18 @@ class _WalletScreenState extends State<WalletScreen> {
 }
 
 // Transaction item helper widget
-Widget _buildTransactionTile(BuildContext context, Map<String, dynamic> tx) {
+Widget _buildTransactionTile(BuildContext context, Map<String, dynamic> tx, String txId) {
   final amount = tx['amount'] as int? ?? 0;
   final description = tx['description'] as String? ?? 'Coin adjustment';
-  final timestamp = tx['timestamp'] as int? ?? DateTime.now().millisecondsSinceEpoch;
-  final dateStr = DateTime.fromMillisecondsSinceEpoch(timestamp)
+  int timestampMs = DateTime.now().millisecondsSinceEpoch;
+  final rawTimestamp = tx['timestamp'];
+  if (rawTimestamp is int) {
+    timestampMs = rawTimestamp;
+  } else if (rawTimestamp is Timestamp) {
+    timestampMs = rawTimestamp.millisecondsSinceEpoch;
+  }
+
+  final dateStr = DateTime.fromMillisecondsSinceEpoch(timestampMs)
       .toLocal()
       .toString()
       .substring(0, 16);
@@ -573,6 +581,7 @@ Widget _buildTransactionTile(BuildContext context, Map<String, dynamic> tx) {
 
   return ListTile(
     contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+    onTap: () => _showTransactionDetails(context, tx, txId),
     leading: CircleAvatar(
       radius: 18,
       backgroundColor: isEarned
@@ -607,6 +616,162 @@ Widget _buildTransactionTile(BuildContext context, Map<String, dynamic> tx) {
         fontSize: 14,
       ),
     ),
+  );
+}
+
+void _showTransactionDetails(BuildContext context, Map<String, dynamic> tx, String txId) {
+  final amount = tx['amount'] as int? ?? 0;
+  final description = tx['description'] as String? ?? 'Coin adjustment';
+  final status = (tx['status'] as String? ?? 'success').toUpperCase();
+  final method = tx['method'] as String? ?? 'N/A';
+  final viaDetail = tx['paymentViaDetail'] as String? ?? 'N/A';
+  final orderId = tx['razorpayOrderId'] as String? ?? 'N/A';
+  
+  int timestampMs = DateTime.now().millisecondsSinceEpoch;
+  final rawTimestamp = tx['timestamp'];
+  if (rawTimestamp is int) {
+    timestampMs = rawTimestamp;
+  } else if (rawTimestamp is Timestamp) {
+    timestampMs = rawTimestamp.millisecondsSinceEpoch;
+  }
+  final dateStr = DateTime.fromMillisecondsSinceEpoch(timestampMs).toLocal().toString().substring(0, 19);
+
+  final isEarned = amount > 0;
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  final textColor = isDarkMode ? Colors.white : Colors.black;
+  final cardColor = Theme.of(context).cardColor;
+
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+    builder: (context) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.white24 : Colors.black12,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Transaction Details',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Text(
+                '${isEarned ? "+" : "-"} ₹${amount.abs()}',
+                style: TextStyle(
+                  color: isEarned ? const Color(0xFF10B981) : const Color(0xFFFF5252),
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000),
+                ),
+              ),
+              child: Column(
+                children: [
+                  _buildDetailRow('Description', description),
+                  const Divider(height: 16),
+                  _buildDetailRow('Status', status, valueColor: status == 'SUCCESS' ? const Color(0xFF10B981) : const Color(0xFFFF5252)),
+                  const Divider(height: 16),
+                  _buildDetailRow('Payment Via', method),
+                  if (viaDetail != 'N/A') ...[
+                    const Divider(height: 16),
+                    _buildDetailRow('Details', viaDetail),
+                  ],
+                  const Divider(height: 16),
+                  _buildDetailRow('Transaction ID', txId, copyable: true, context: context),
+                  if (orderId != 'N/A') ...[
+                    const Divider(height: 16),
+                    _buildDetailRow('Order ID', orderId),
+                  ],
+                  const Divider(height: 16),
+                  _buildDetailRow('Date & Time', dateStr),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+Widget _buildDetailRow(
+  String label,
+  String value, {
+  Color? valueColor,
+  bool copyable = false,
+  BuildContext? context,
+}) {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(
+        label,
+        style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(width: 16),
+      Expanded(
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    color: valueColor ?? Colors.grey[600],
+                    fontSize: 13,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (copyable && context != null) ...[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: value));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Transaction ID copied!'),
+                        backgroundColor: Color(0xFF536DFE),
+                      ),
+                    );
+                  },
+                  child: const Icon(Icons.copy_rounded, color: Color(0xFF536DFE), size: 14),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    ],
   );
 }
 
@@ -696,7 +861,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen> {
                   ),
                   itemBuilder: (context, index) {
                     final tx = txDocs[index].data() as Map<String, dynamic>;
-                    return _buildTransactionTile(context, tx);
+                    return _buildTransactionTile(context, tx, txDocs[index].id);
                   },
                 );
               },
