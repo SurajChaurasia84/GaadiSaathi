@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'payment_status_screens.dart';
 import '../../providers/app_state.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -16,6 +20,10 @@ class _WalletScreenState extends State<WalletScreen> {
   final _customAmountController = TextEditingController();
   Stream<QuerySnapshot>? _transactionsStream;
 
+  late Razorpay _razorpay;
+  double? _pendingAmount;
+  String? _pendingOrderId;
+
   @override
   void initState() {
     super.initState();
@@ -28,101 +36,174 @@ class _WalletScreenState extends State<WalletScreen> {
           .orderBy('timestamp', descending: true)
           .snapshots();
     }
+
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
 
   @override
   void dispose() {
+    _razorpay.clear();
     _customAmountController.dispose();
     super.dispose();
   }
 
-  // Simulate payment processing and add coins
-  Future<void> _purchaseCoins(AppState appState, int amount, double price) async {
+  Future<void> _startRazorpayPayment(AppState appState, double amount) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to recharge.')),
+      );
+      return;
+    }
+
     setState(() {
       _isProcessing = true;
+      _pendingAmount = amount;
     });
 
-    // Simulate 1.5s gateway delay
-    await Future.delayed(const Duration(milliseconds: 1500));
+    try {
+      // 1. Create order on the Vercel backend
+      final response = await http.post(
+        Uri.parse('https://gaadisaathi-backend.vercel.app/api/create-razorpay-order'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'amount': amount,
+          'userId': user.uid,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception(jsonDecode(response.body)['error'] ?? 'Failed to create order');
+      }
+
+      final data = jsonDecode(response.body);
+      final String orderId = data['id'];
+      _pendingOrderId = orderId;
+
+      // 2. Launch Razorpay Checkout UI
+      var options = {
+        'key': 'rzp_test_TDiYGf92druKaJ',
+        'amount': amount * 100, // in paise
+        'name': 'Gaadi Saathi',
+        'order_id': orderId,
+        'description': 'Add ₹${amount.toInt()} Coins',
+        'prefill': {
+          'contact': appState.currentUserPhone ?? '',
+          'email': appState.currentGmail ?? '',
+        },
+        'timeout': 300, // in seconds
+      };
+
+      _razorpay.open(options);
+    } catch (e) {
+      setState(() {
+        _isProcessing = false;
+      });
+      // Show failed screen
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaymentFailedScreen(
+            orderId: '',
+            reason: e.toString().replaceAll('Exception: ', ''),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || _pendingAmount == null || _pendingOrderId == null) {
+      setState(() {
+        _isProcessing = false;
+      });
+      return;
+    }
+
+    final nav = Navigator.of(context);
 
     try {
-      await appState.addCoins(amount, "Added $amount Coins (₹${price.toInt()})");
+      // 3. Verify payment on Vercel backend
+      final verificationResponse = await http.post(
+        Uri.parse('https://gaadisaathi-backend.vercel.app/api/verify-razorpay-payment'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'razorpay_order_id': response.orderId,
+          'razorpay_payment_id': response.paymentId,
+          'razorpay_signature': response.signature,
+          'userId': user.uid,
+          'amount': _pendingAmount,
+        }),
+      );
 
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-        });
+      setState(() {
+        _isProcessing = false;
+      });
 
-        // Show Success Popup Dialog
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: Theme.of(context).cardColor,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: const BoxDecoration(
-                    color: Color(0x1010B981),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check_circle_rounded,
-                    color: Color(0xFF10B981),
-                    size: 54,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Recharge Successful',
-                  style: TextStyle(
-                    color: context.textColor,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Added $amount Coins to your wallet successfully.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: context.textColor54,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF536DFE),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    elevation: 0,
-                  ),
-                  child: const Text('Great!', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ],
+      if (verificationResponse.statusCode == 200) {
+        // Success payment screen
+        nav.push(
+          MaterialPageRoute(
+            builder: (context) => PaymentSuccessScreen(
+              amount: _pendingAmount!,
+              orderId: response.orderId ?? _pendingOrderId ?? '',
+              transactionId: response.paymentId ?? '',
+              timestamp: DateTime.now(),
+            ),
+          ),
+        );
+      } else {
+        final errorMsg = jsonDecode(verificationResponse.body)['error'] ?? 'Verification failed';
+        // Failed payment screen
+        nav.push(
+          MaterialPageRoute(
+            builder: (context) => PaymentFailedScreen(
+              orderId: response.orderId ?? _pendingOrderId ?? '',
+              reason: errorMsg,
             ),
           ),
         );
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Payment failed: $e'),
-            backgroundColor: Colors.redAccent,
+      setState(() {
+        _isProcessing = false;
+      });
+      nav.push(
+        MaterialPageRoute(
+          builder: (context) => PaymentFailedScreen(
+            orderId: response.orderId ?? _pendingOrderId ?? '',
+            reason: 'Network/Server error during payment verification: $e',
           ),
-        );
-      }
+        ),
+      );
     }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    setState(() {
+      _isProcessing = false;
+    });
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PaymentFailedScreen(
+          orderId: _pendingOrderId ?? '',
+          reason: response.message ?? 'Payment failed or cancelled.',
+        ),
+      ),
+    );
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    setState(() {
+      _isProcessing = false;
+    });
   }
 
   @override
@@ -266,7 +347,7 @@ class _WalletScreenState extends State<WalletScreen> {
                               final amount = int.tryParse(amountStr);
                               if (amount != null && amount > 0) {
                                 FocusScope.of(context).unfocus();
-                                _purchaseCoins(appState, amount, amount.toDouble());
+                                _startRazorpayPayment(appState, amount.toDouble());
                                 _customAmountController.clear();
                               }
                             },
@@ -418,7 +499,7 @@ class _WalletScreenState extends State<WalletScreen> {
       elevation: 0,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => _purchaseCoins(appState, amount, price),
+        onTap: () => _startRazorpayPayment(appState, price),
         child: Stack(
           alignment: Alignment.center,
           children: [
