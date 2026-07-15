@@ -76,6 +76,33 @@ module.exports = async (req, res) => {
     return res.status(400).json({ success: false, error: 'Signature verification failed' });
   }
 
+  let method = 'Unknown';
+  let paymentViaDetail = 'N/A';
+
+  try {
+    const authString = Buffer.from(`${process.env.RAZORPAY_KEY_ID || 'rzp_test_TDiYGf92druKaJ'}:${secret}`).toString('base64');
+    const paymentResponse = await fetch(`https://api.razorpay.com/v1/payments/${razorpay_payment_id}`, {
+      headers: {
+        'Authorization': `Basic ${authString}`
+      }
+    });
+    if (paymentResponse.ok) {
+      const paymentData = await paymentResponse.json();
+      method = paymentData.method || 'Unknown';
+      if (method === 'upi') {
+        paymentViaDetail = paymentData.vpa || 'UPI';
+      } else if (method === 'bank' || method === 'netbanking') {
+        paymentViaDetail = paymentData.bank || 'Netbanking';
+      } else if (method === 'wallet') {
+        paymentViaDetail = paymentData.wallet || 'Wallet';
+      } else if (method === 'card') {
+        paymentViaDetail = paymentData.card ? (paymentData.card.network || 'Card') : 'Card';
+      }
+    }
+  } catch (err) {
+    console.error('Failed to fetch payment info from Razorpay:', err);
+  }
+
   try {
     // 2. Perform Firestore Transaction to safely add coins
     await db.runTransaction(async (transaction) => {
@@ -104,7 +131,9 @@ module.exports = async (req, res) => {
         description: `Added ₹${amount} Coins (Razorpay)`,
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
         razorpayOrderId: razorpay_order_id,
-        status: 'success'
+        status: 'success',
+        method: method.toUpperCase(),
+        paymentViaDetail: paymentViaDetail
       });
     });
 
