@@ -200,6 +200,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
           if (expiry != null && expiry < DateTime.now().millisecondsSinceEpoch) {
             return false;
           }
+          final ownerExpiry = data['ownerExpiryTimestamp'] as int?;
+          if (ownerExpiry != null && ownerExpiry < DateTime.now().millisecondsSinceEpoch) {
+            return false;
+          }
           return true;
         }).toList();
         docs.shuffle(Random());
@@ -1529,27 +1533,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                   return;
                 }
 
-                // Check coin balance (20 coins required for ad banner posting)
-                if (appState.userCoins < 20) {
-                  messenger.clearSnackBars();
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: const Text('Insufficient Balance! Posting an ad banner costs ₹20.'),
-                      backgroundColor: Colors.orangeAccent,
-                      action: SnackBarAction(
-                        label: 'Recharge',
-                        textColor: Colors.white,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const WalletScreen()),
-                          );
-                        },
-                      ),
-                    ),
-                  );
-                  return;
-                }
+                final hasPass = await _ensureActivePostingPass(context, appState);
+                if (!hasPass) return;
 
                 messenger.clearSnackBars();
                 messenger.showSnackBar(
@@ -1582,19 +1567,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     return;
                   }
 
-                  // Deduct 20 coins
-                  final success = await appState.deductCoins(20, "Post: Ad Banner (${_adTitleController.text.trim()})");
-                  if (!success) {
-                    messenger.clearSnackBars();
-                    messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text('Failed to deduct coins. Please try again.'),
-                        backgroundColor: Colors.redAccent,
-                      ),
-                    );
-                    return;
-                  }
-
                   final docId = 'ad_${DateTime.now().millisecondsSinceEpoch}';
                   await FirebaseFirestore.instance.collection('ads').doc(docId).set({
                     'id': docId,
@@ -1608,6 +1580,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     'ownerGmail': appState.currentGmail ?? 'guest.customer@gmail.com',
                     'timestamp': DateTime.now().millisecondsSinceEpoch,
                     'expiryTimestamp': DateTime.now().add(const Duration(days: 30)).millisecondsSinceEpoch,
+                    'ownerExpiryTimestamp': appState.postingExpiryTimestamp,
                   });
 
                   messenger.clearSnackBars();
@@ -2266,7 +2239,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
+
+          // Posting Pass Status Card
+          _buildPostingPassCard(appState),
+          const SizedBox(height: 24),
 
           // Settings Section Title
           Text(
@@ -3583,13 +3560,25 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
               const SizedBox(height: 24),
               // Ad Banner Image
               if (photoUrl.isNotEmpty) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.network(
-                    photoUrl,
-                    height: 180,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FullScreenImageViewer(imageUrl: photoUrl),
+                      ),
+                    );
+                  },
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 300),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        photoUrl,
+                        width: double.infinity,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -3837,5 +3826,281 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
         );
       }
     }
+  }
+
+  Future<bool> _ensureActivePostingPass(BuildContext context, AppState appState) async {
+    if (appState.hasActivePostingPass) return true;
+
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+
+    final wantToBuy = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          title: Text(
+            'Posting Pass Required',
+            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+          ),
+          content: Text(
+            'To post ads or register vehicles, you need an active 1-Month Posting Pass which costs ₹50. Would you like to buy it now?',
+            style: TextStyle(color: isDarkMode ? Colors.white70 : Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF536DFE),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Buy Pass (₹50)'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (wantToBuy != true) return false;
+
+    if (appState.userCoins < 50) {
+      if (!context.mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Insufficient Coins! A 1-Month Posting Pass costs ₹50.'),
+          backgroundColor: Colors.orangeAccent,
+          action: SnackBarAction(
+            label: 'Recharge',
+            textColor: Colors.white,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const WalletScreen()),
+              );
+            },
+          ),
+        ),
+      );
+      return false;
+    }
+
+    // Show loading indicator
+    if (!context.mounted) return false;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF536DFE)),
+      ),
+    );
+
+    final success = await appState.purchasePostingPass();
+    if (!context.mounted) return false;
+    Navigator.pop(context); // Pop loading indicator
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('1-Month Posting Pass purchased successfully!'),
+          backgroundColor: Color(0xFF10B981),
+        ),
+      );
+      return true;
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to purchase posting pass. Please try again.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return false;
+    }
+  }
+
+  Widget _buildPostingPassCard(AppState appState) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Theme.of(context).cardColor;
+    final hasPass = appState.hasActivePostingPass;
+
+    String dateStr = 'N/A';
+    if (appState.postingExpiryTimestamp > 0) {
+      dateStr = DateTime.fromMillisecondsSinceEpoch(appState.postingExpiryTimestamp)
+          .toLocal()
+          .toString()
+          .substring(0, 10); // YYYY-MM-DD
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: hasPass
+              ? const Color(0xFF10B981).withValues(alpha: 0.25)
+              : (isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000)),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.assignment_turned_in_rounded,
+                    color: hasPass ? const Color(0xFF10B981) : Colors.grey,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '1-Month Posting Pass',
+                    style: TextStyle(
+                      color: context.textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: hasPass
+                      ? const Color(0x1510B981)
+                      : (isDarkMode ? Colors.white10 : Colors.black12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: hasPass ? const Color(0xFF10B981) : Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      hasPass ? 'ACTIVE' : 'INACTIVE',
+                      style: TextStyle(
+                        color: hasPass ? const Color(0xFF10B981) : Colors.grey,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Postings Availability',
+                style: TextStyle(color: context.textColor54, fontSize: 12),
+              ),
+              Text(
+                hasPass ? 'Unlimited Enabled' : 'Disabled',
+                style: TextStyle(
+                  color: hasPass ? const Color(0xFF10B981) : Colors.redAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          if (appState.postingExpiryTimestamp > 0) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Expiry Date',
+                  style: TextStyle(color: context.textColor54, fontSize: 12),
+                ),
+                Text(
+                  dateStr,
+                  style: TextStyle(
+                    color: context.textColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (!hasPass) ...[
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () async {
+                final success = await _ensureActivePostingPass(context, appState);
+                if (success && mounted) {
+                  setState(() {});
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF536DFE),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Buy Pass (₹50)',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class FullScreenImageViewer extends StatelessWidget {
+  final String imageUrl;
+
+  const FullScreenImageViewer({super.key, required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          panEnabled: true,
+          boundaryMargin: const EdgeInsets.all(20),
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            width: double.infinity,
+            height: double.infinity,
+          ),
+        ),
+      ),
+    );
   }
 }
