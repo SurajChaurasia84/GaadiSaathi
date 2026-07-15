@@ -306,7 +306,7 @@ class PaymentFailedScreen extends StatelessWidget {
                   elevation: 0,
                 ),
                 child: const Text(
-                  'Try Again / Back',
+                  'Back to Wallet',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
