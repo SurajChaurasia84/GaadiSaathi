@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'my_profile_detail_screen.dart';
 import '../../providers/app_state.dart';
 
 class MyReferralScreen extends StatefulWidget {
@@ -354,6 +356,123 @@ class _MyReferralScreenState extends State<MyReferralScreen> {
                         ),
                       ],
                     ),
+            ),
+            const SizedBox(height: 28),
+            // Referral History Section Header
+            Text(
+              'REFERRAL HISTORY',
+              style: TextStyle(
+                color: textColor30,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Referral list StreamBuilder
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .where('redeemedCode', isEqualTo: referralCode)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20.0),
+                      child: CircularProgressIndicator(color: Color(0xFF536DFE), strokeWidth: 2),
+                    ),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    child: Text(
+                      'No referrals yet. Share your code to start earning!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: textColor54, fontSize: 13),
+                    ),
+                  );
+                }
+
+                final users = snapshot.data!.docs;
+
+                return ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: users.length,
+                  separatorBuilder: (context, index) => Divider(
+                    color: isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000),
+                    height: 1,
+                  ),
+                  itemBuilder: (context, index) {
+                    final userDoc = users[index].data() as Map<String, dynamic>;
+                    final name = userDoc['name'] as String? ?? 'User';
+                    final email = userDoc['email'] as String? ?? '';
+                    final photoUrl = userDoc['photoUrl'] as String?;
+                    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      onTap: () {
+                        if (email.isNotEmpty) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MyProfileDetailScreen(userEmail: email),
+                            ),
+                          );
+                        }
+                      },
+                      leading: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: const Color(0xFF536DFE).withValues(alpha: 0.1),
+                        backgroundImage: photoUrl != null && photoUrl.isNotEmpty
+                            ? NetworkImage(photoUrl)
+                            : null,
+                        child: photoUrl != null && photoUrl.isNotEmpty
+                            ? null
+                            : Text(
+                                initial,
+                                style: const TextStyle(
+                                  color: Color(0xFF536DFE),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                      title: Text(
+                        name,
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            '+1 ',
+                            style: TextStyle(
+                              color: Color(0xFF10B981),
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Image.asset(
+                            'assets/coin.png',
+                            width: 18,
+                            height: 18,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ],
         ),
