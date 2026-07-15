@@ -29,6 +29,9 @@ class AppState extends ChangeNotifier {
   String? currentUserPhone;
   String? currentUserAddress;
   int userCoins = 0;
+  int postingExpiryTimestamp = 0;
+
+  bool get hasActivePostingPass => postingExpiryTimestamp > DateTime.now().millisecondsSinceEpoch;
 
   // Referral state
   String? referralCode;
@@ -148,6 +151,7 @@ class AppState extends ChangeNotifier {
             currentUserAddress = data['address'] as String? ?? currentUserAddress;
             currentUserPhotoUrl = data['photoUrl'] as String? ?? currentUserPhotoUrl;
             userCoins = data['coins'] as int? ?? 0;
+            postingExpiryTimestamp = data['postingExpiryTimestamp'] as int? ?? 0;
             referralCode = data['referralCode'] as String?;
             referralCoins = data['referralCoins'] as int? ?? 0;
             redeemedCode = data['redeemedCode'] as String?;
@@ -358,6 +362,77 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  // Securely purchase a 1-Month Posting Pass (₹50)
+  Future<bool> purchasePostingPass() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    try {
+      bool success = false;
+      int nextExpiry = 0;
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snapshot = await transaction.get(docRef);
+        if (!snapshot.exists) throw Exception("User document not found");
+
+        final data = snapshot.data();
+        final currentCoins = data?['coins'] as int? ?? 0;
+        if (currentCoins < 50) {
+          throw Exception("Insufficient coins. Please recharge.");
+        }
+
+        // Calculate new expiry (30 days from now)
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        final currentExpiry = data?['postingExpiryTimestamp'] as int? ?? 0;
+        final baseTime = currentExpiry > nowMs ? currentExpiry : nowMs;
+        nextExpiry = baseTime + const Duration(days: 30).inMilliseconds;
+
+        // Deduct 50 coins and update postingExpiryTimestamp
+        transaction.update(docRef, {
+          'coins': currentCoins - 50,
+          'postingExpiryTimestamp': nextExpiry
+        });
+        success = true;
+      });
+
+      if (success) {
+        // Log transaction
+        await docRef.collection('transactions').add({
+          'amount': -50,
+          'description': 'Purchased 1-Month Posting Pass',
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          'status': 'success'
+        });
+
+        // Update postingExpiryTimestamp of all existing vehicles of this user
+        final vehiclesQuery = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .where('ownerGmail', isEqualTo: currentGmail)
+            .get();
+        
+        final batch = FirebaseFirestore.instance.batch();
+        for (var doc in vehiclesQuery.docs) {
+          batch.update(doc.reference, {'ownerExpiryTimestamp': nextExpiry});
+        }
+        await batch.commit();
+
+        // Also update all existing ads of this user
+        final adsQuery = await FirebaseFirestore.instance
+            .collection('ads')
+            .where('ownerGmail', isEqualTo: currentGmail)
+            .get();
+        for (var doc in adsQuery.docs) {
+          await doc.reference.update({'ownerExpiryTimestamp': nextExpiry});
+        }
+
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Failed to purchase posting pass: $e');
+    }
+    return false;
+  }
+
   // All mock vehicles in system
   List<Vehicle> _allVehicles = [];
 
@@ -495,6 +570,10 @@ class AppState extends ChangeNotifier {
     if (!isLocationOn) return [];
 
     return _allVehicles.where((vehicle) {
+      if (vehicle.ownerExpiryTimestamp != null &&
+          vehicle.ownerExpiryTimestamp! < DateTime.now().millisecondsSinceEpoch) {
+        return false;
+      }
       if (!vehicle.isServiceOn) return false;
 
       double distance = getDistanceFromUser(vehicle.latitude, vehicle.longitude);
