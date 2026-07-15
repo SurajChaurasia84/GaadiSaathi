@@ -31,6 +31,7 @@ class Vehicle {
   final double longitude;
   final String? phoneNumber;
   final String? address;
+  final int? ownerExpiryTimestamp;
 
   Vehicle({
     required this.id,
@@ -46,6 +47,7 @@ class Vehicle {
     required this.longitude,
     this.phoneNumber,
     this.address,
+    this.ownerExpiryTimestamp,
   });
 
   Vehicle copyWith({
@@ -62,6 +64,7 @@ class Vehicle {
     double? longitude,
     String? phoneNumber,
     String? address,
+    int? ownerExpiryTimestamp,
   }) {
     return Vehicle(
       id: id ?? this.id,
@@ -77,6 +80,7 @@ class Vehicle {
       longitude: longitude ?? this.longitude,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       address: address ?? this.address,
+      ownerExpiryTimestamp: ownerExpiryTimestamp ?? this.ownerExpiryTimestamp,
     );
   }
 
@@ -95,6 +99,7 @@ class Vehicle {
       'longitude': longitude,
       'phoneNumber': phoneNumber,
       'address': address,
+      'ownerExpiryTimestamp': ownerExpiryTimestamp,
     };
   }
 
@@ -124,6 +129,7 @@ class Vehicle {
       longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
       phoneNumber: map['phoneNumber'] as String?,
       address: map['address'] as String?,
+      ownerExpiryTimestamp: map['ownerExpiryTimestamp'] as int?,
     );
   }
 }
