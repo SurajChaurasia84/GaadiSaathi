@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
@@ -21,6 +20,7 @@ import 'my_profile_detail_screen.dart';
 import 'shop_detail_screen.dart';
 import 'wallet_screen.dart';
 import 'driver_detail_screen.dart';
+import 'my_referral_screen.dart';
 import '../../widgets/ad_banner_widget.dart';
 import '../../widgets/cached_user_avatar.dart';
 
@@ -2381,8 +2381,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 _buildSettingTile(
                   context: context,
                   icon: Icons.share_outlined,
-                  title: 'Share App',
-                  onTap: () => _handleShareApp(context),
+                  title: 'My Referral',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const MyReferralScreen()),
+                    );
+                  },
                 ),
                 _buildDivider(context),
                 ListTile(
@@ -2488,17 +2493,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
   }
 
 
-  void _handleShareApp(BuildContext context) {
-    SharePlus.instance.share(
-      ShareParams(
-        text: 'Hey! Check out Gaadi Saathi - Your ultimate peer-to-peer vehicle rental partner. '
-            'Rent cars, e-rickshaws, or loading vehicles easily or start earning by listing yours!\n\n'
-            'Download now from Google Play Store:\n'
-            'https://play.google.com/store/apps/details?id=com.gaadisaathi.rent.apps',
-        title: 'Share Gaadi Saathi App',
-      ),
-    );
-  }
+
 
   void _showLogoutConfirmDialog(BuildContext context, AppState appState) {
     showDialog(
