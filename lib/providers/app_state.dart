@@ -30,6 +30,11 @@ class AppState extends ChangeNotifier {
   String? currentUserAddress;
   int userCoins = 0;
 
+  // Referral state
+  String? referralCode;
+  int referralCoins = 0;
+  String? redeemedCode;
+
   // Location state
   bool isLocationOn = false;
   bool isFetchingLocation = true;
@@ -143,6 +148,13 @@ class AppState extends ChangeNotifier {
             currentUserAddress = data['address'] as String? ?? currentUserAddress;
             currentUserPhotoUrl = data['photoUrl'] as String? ?? currentUserPhotoUrl;
             userCoins = data['coins'] as int? ?? 0;
+            referralCode = data['referralCode'] as String?;
+            referralCoins = data['referralCoins'] as int? ?? 0;
+            redeemedCode = data['redeemedCode'] as String?;
+
+            if (referralCode == null) {
+              _generateAndSaveReferralCode(user.uid);
+            }
             
             _persistUserDataLocally();
             notifyListeners();
@@ -160,6 +172,100 @@ class AppState extends ChangeNotifier {
       if (currentUserAddress != null) await prefs.setString('user_address', currentUserAddress!);
       if (currentUserPhotoUrl != null) await prefs.setString('user_photo', currentUserPhotoUrl!);
     } catch (_) {}
+  }
+
+  String _generateRandomCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final rand = Random();
+    return List.generate(6, (index) => chars[rand.nextInt(chars.length)]).join();
+  }
+
+  Future<void> _generateAndSaveReferralCode(String uid) async {
+    final firestore = FirebaseFirestore.instance;
+    String refCode = _generateRandomCode();
+    
+    // Check to guarantee uniqueness
+    bool exists = true;
+    int attempts = 0;
+    while (exists && attempts < 10) {
+      final query = await firestore
+          .collection('users')
+          .where('referralCode', isEqualTo: refCode)
+          .limit(1)
+          .get();
+      if (query.docs.isEmpty) {
+        exists = false;
+      } else {
+        refCode = _generateRandomCode();
+        attempts++;
+      }
+    }
+    
+    await firestore.collection('users').doc(uid).set({
+      'referralCode': refCode,
+      'referralCoins': 0,
+    }, SetOptions(merge: true)).catchError((_) {});
+  }
+
+  Future<void> redeemReferralCode(String code) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception("Please log in to redeem code");
+
+    final cleanCode = code.trim().toUpperCase();
+    if (cleanCode.length != 6) throw Exception("Invalid referral code format");
+
+    final firestore = FirebaseFirestore.instance;
+
+    // 1. Check if trying to redeem own code
+    if (cleanCode == referralCode) {
+      throw Exception("You cannot redeem your own referral code");
+    }
+
+    // 2. Run transaction to verify and update
+    await firestore.runTransaction((transaction) async {
+      final currentUserRef = firestore.collection('users').doc(user.uid);
+      final currentUserDoc = await transaction.get(currentUserRef);
+
+      if (!currentUserDoc.exists) throw Exception("User document not found");
+
+      // Verify not already redeemed
+      final currentData = currentUserDoc.data();
+      if (currentData != null && currentData['redeemedCode'] != null) {
+        throw Exception("You have already redeemed a referral code");
+      }
+
+      // Find the referrer with this code
+      final referrerQuery = await firestore
+          .collection('users')
+          .where('referralCode', isEqualTo: cleanCode)
+          .limit(1)
+          .get();
+
+      if (referrerQuery.docs.isEmpty) {
+        throw Exception("Invalid referral code");
+      }
+
+      final referrerDoc = referrerQuery.docs.first;
+      final referrerRef = firestore.collection('users').doc(referrerDoc.id);
+
+      // We cannot check if it's current user again but doc id check is double safety
+      if (referrerDoc.id == user.uid) {
+        throw Exception("You cannot redeem your own referral code");
+      }
+
+      // Read referrer current coins
+      final referrerData = referrerDoc.data();
+      final currentReferrerCoins = referrerData['referralCoins'] as int? ?? 0;
+
+      // Update both docs
+      transaction.update(currentUserRef, {
+        'redeemedCode': cleanCode,
+      });
+
+      transaction.update(referrerRef, {
+        'referralCoins': currentReferrerCoins + 1,
+      });
+    });
   }
 
   // Update user profile in local cache and Firestore
