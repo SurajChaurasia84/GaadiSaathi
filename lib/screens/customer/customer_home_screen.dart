@@ -23,6 +23,8 @@ import 'driver_detail_screen.dart';
 import 'my_referral_screen.dart';
 import '../../widgets/ad_banner_widget.dart';
 import '../../widgets/cached_user_avatar.dart';
+import 'package:share_plus/share_plus.dart';
+
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -70,21 +72,27 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
   final _shopPriceController = TextEditingController();
   final _shopOwnerController = TextEditingController();
   final _shopAddressController = TextEditingController();
-  String? _pickedShopPhotoPath;
+  String? _pickedShopFullPhotoPath;
+  String? _pickedShopFrontPhotoPath;
+  String? _pickedShopBackPhotoPath;
+  String? _pickedShopInteriorPhotoPath;
 
   // Driver properties
   final _driverFormKey = GlobalKey<FormState>();
   final _driverNameController = TextEditingController();
   final _driverPhoneController = TextEditingController();
   final _driverAddressController = TextEditingController();
-  final _driverAboutController = TextEditingController();
+  final _driverExperienceController = TextEditingController();
   String? _pickedLicensePhotoPath;
+  String? _pickedDriverSelfiePath;
 
   // Service Center properties
   final _serviceCenterFormKey = GlobalKey<FormState>();
   final _serviceCenterNameController = TextEditingController();
   final _serviceCenterPhoneController = TextEditingController();
   final _serviceCenterAddressController = TextEditingController();
+  String? _pickedServiceCenterPhotoPath;
+  List<String> _selectedServiceCenterTypes = [];
 
   // Ads properties
   final _adFormKey = GlobalKey<FormState>();
@@ -140,13 +148,61 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     }
   }
 
-  Future<void> _pickShopImage() async {
+  Future<void> _pickDriverSelfie() async {
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
         setState(() {
-          _pickedShopPhotoPath = image.path;
+          _pickedDriverSelfiePath = image.path;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+  Future<void> _pickServiceCenterPhoto() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        setState(() {
+          _pickedServiceCenterPhotoPath = image.path;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+  Future<void> _pickShopPhoto(String type) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        setState(() {
+          if (type == 'full') {
+            _pickedShopFullPhotoPath = image.path;
+          } else if (type == 'front') {
+            _pickedShopFrontPhotoPath = image.path;
+          } else if (type == 'back') {
+            _pickedShopBackPhotoPath = image.path;
+          } else if (type == 'interior') {
+            _pickedShopInteriorPhotoPath = image.path;
+          }
         });
       }
     } catch (e) {
@@ -242,7 +298,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     _driverNameController.dispose();
     _driverPhoneController.dispose();
     _driverAddressController.dispose();
-    _driverAboutController.dispose();
+    _driverExperienceController.dispose();
 
     _serviceCenterNameController.dispose();
     _serviceCenterPhoneController.dispose();
@@ -552,7 +608,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
               ),
             )
           else if (vehicles.isEmpty)
-            _buildEmptyStateCard(appState)
+            _buildEmptyStateFlat(appState)
           else
             ListView.builder(
               shrinkWrap: true,
@@ -663,26 +719,22 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     );
   }
 
-  Widget _buildEmptyStateCard(AppState appState) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
+  Widget _buildEmptyStateFlat(AppState appState) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.car_crash_rounded, color: context.textColor30, size: 48),
+          Icon(Icons.directions_car_outlined, color: context.textColor30, size: 52),
           const SizedBox(height: 16),
           Text(
-            'No Vehicles in this Range',
-            style: TextStyle(color: context.textColor, fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'There are no active vehicles registered within ${appState.searchRadiusKm.toStringAsFixed(1)} Km. Try widening the search radius.',
+            'No registered vehicle in this area',
             textAlign: TextAlign.center,
-            style: TextStyle(color: context.textColor54, fontSize: 12, height: 1.4),
+            style: TextStyle(
+              color: context.textColor54,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -690,7 +742,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
   }
 
   Widget _buildAddTabSelector() {
-    final tabs = ['Vehicle', 'Shop', 'Driver', 'Service Center', 'Ads'];
+    final tabs = ['Vehicle', 'Shop Buy & Sell', 'Driver', 'Service Center', 'Ads'];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -790,7 +842,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Add your shop details and upload vehicle/shop photo to buy & sell old vehicles.',
+              'Add your vehicle details and upload 4 photos to buy & sell old vehicles.',
               style: TextStyle(
                 color: context.textColor54,
                 fontSize: 12,
@@ -802,8 +854,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
               controller: _shopNameController,
               textCapitalization: TextCapitalization.words,
               style: TextStyle(color: context.textColor, fontSize: 14),
-              decoration: _buildInputDecoration('Shop Name / Vehicle For Sale', Icons.storefront_rounded),
-              validator: (value) => value == null || value.trim().isEmpty ? 'Enter shop/vehicle name' : null,
+              decoration: _buildInputDecoration('Vehicle For Sale', Icons.directions_car_filled_rounded),
+              validator: (value) => value == null || value.trim().isEmpty ? 'Enter vehicle name' : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -866,7 +918,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
             ),
             const SizedBox(height: 16),
             Text(
-              'VEHICLE / SHOP PHOTO',
+              'VEHICLE PHOTOS (4 VIEWS REQUIRED)',
               style: TextStyle(
                 color: context.textColor30,
                 fontSize: 10,
@@ -875,39 +927,20 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
               ),
             ),
             const SizedBox(height: 8),
-            GestureDetector(
-              onTap: _pickShopImage,
-              child: Container(
-                height: 140,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000),
-                    width: 1.5,
-                  ),
-                ),
-                child: _pickedShopPhotoPath != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          File(_pickedShopPhotoPath!),
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                        ),
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF536DFE), size: 28),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Upload vehicle or shop photo',
-                            style: TextStyle(color: context.textColor54, fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-              ),
+            Row(
+              children: [
+                _buildPhotoPickerItem('full', 'Full View', _pickedShopFullPhotoPath),
+                const SizedBox(width: 10),
+                _buildPhotoPickerItem('front', 'Front View', _pickedShopFrontPhotoPath),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _buildPhotoPickerItem('back', 'Back View', _pickedShopBackPhotoPath),
+                const SizedBox(width: 10),
+                _buildPhotoPickerItem('interior', 'Interior View', _pickedShopInteriorPhotoPath),
+              ],
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -915,11 +948,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 if (!_shopFormKey.currentState!.validate()) return;
                 final messenger = ScaffoldMessenger.of(context);
 
-                if (_pickedShopPhotoPath == null) {
+                if (_pickedShopFullPhotoPath == null ||
+                    _pickedShopFrontPhotoPath == null ||
+                    _pickedShopBackPhotoPath == null ||
+                    _pickedShopInteriorPhotoPath == null) {
                   messenger.clearSnackBars();
                   messenger.showSnackBar(
                     const SnackBar(
-                      content: Text('Please select vehicle or shop photo.'),
+                      content: Text('Please upload all 4 vehicle photos (Full, Front, Back, Interior).'),
                       backgroundColor: Colors.orangeAccent,
                     ),
                   );
@@ -931,7 +967,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                   messenger.clearSnackBars();
                   messenger.showSnackBar(
                     SnackBar(
-                      content: const Text('Insufficient Balance! Listing a shop costs ₹10.'),
+                      content: const Text('Insufficient Balance! Listing a vehicle for sale costs ₹10.'),
                       backgroundColor: Colors.orangeAccent,
                       action: SnackBarAction(
                         label: 'Recharge',
@@ -959,7 +995,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         ),
                         SizedBox(width: 12),
-                        Text('Adding Shop...'),
+                        Text('Uploading 4 photos...'),
                       ],
                     ),
                     duration: Duration(days: 1),
@@ -967,12 +1003,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 );
 
                 try {
-                  final finalPhotoUrl = await appState.uploadToCloudinary(_pickedShopPhotoPath!);
-                  if (finalPhotoUrl == null) {
+                  final fullUrl = await appState.uploadToCloudinary(_pickedShopFullPhotoPath!);
+                  final frontUrl = await appState.uploadToCloudinary(_pickedShopFrontPhotoPath!);
+                  final backUrl = await appState.uploadToCloudinary(_pickedShopBackPhotoPath!);
+                  final interiorUrl = await appState.uploadToCloudinary(_pickedShopInteriorPhotoPath!);
+
+                  if (fullUrl == null || frontUrl == null || backUrl == null || interiorUrl == null) {
                     messenger.clearSnackBars();
                     messenger.showSnackBar(
                       const SnackBar(
-                        content: Text('Failed to upload photo. Please try again.'),
+                        content: Text('Failed to upload one or more photos. Please try again.'),
                         backgroundColor: Colors.redAccent,
                       ),
                     );
@@ -980,7 +1020,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                   }
 
                   // Deduct 10 coins
-                  final success = await appState.deductCoins(10, "Post: Listed Shop / Vehicle (${_shopNameController.text.trim()})");
+                  final success = await appState.deductCoins(10, "Post: Listed Vehicle for Sale (${_shopNameController.text.trim()})");
                   if (!success) {
                     messenger.clearSnackBars();
                     messenger.showSnackBar(
@@ -1000,7 +1040,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     'phoneNumber': _shopPhoneController.text.trim(),
                     'price': double.tryParse(_shopPriceController.text.trim()) ?? 0.0,
                     'address': _shopAddressController.text.trim(),
-                    'photoUrl': finalPhotoUrl,
+                    'photoUrl': fullUrl,
+                    'photoUrls': [fullUrl, frontUrl, backUrl, interiorUrl],
                     'latitude': appState.customerLatitude + (Random().nextDouble() - 0.5) * 0.02,
                     'longitude': appState.customerLongitude + (Random().nextDouble() - 0.5) * 0.02,
                     'ownerGmail': appState.currentGmail ?? 'guest.customer@gmail.com',
@@ -1015,7 +1056,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     _shopPhoneController.clear();
                     _shopPriceController.clear();
                     _shopAddressController.clear();
-                    _pickedShopPhotoPath = null;
+                    _pickedShopFullPhotoPath = null;
+                    _pickedShopFrontPhotoPath = null;
+                    _pickedShopBackPhotoPath = null;
+                    _pickedShopInteriorPhotoPath = null;
                   });
 
                   messenger.showSnackBar(
@@ -1039,9 +1083,50 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              child: const Text('Add Shop', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: const Text('Add Vehicle for Sale', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoPickerItem(String type, String label, String? photoPath) {
+    final isDarkMode = context.isDarkMode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _pickShopPhoto(type),
+        child: Container(
+          height: 100,
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+              width: 1.5,
+            ),
+          ),
+          child: photoPath != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    File(photoPath),
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF536DFE), size: 24),
+                    const SizedBox(height: 6),
+                    Text(
+                      label,
+                      style: TextStyle(color: context.textColor54, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
@@ -1112,57 +1197,127 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
             ),
             const SizedBox(height: 12),
             TextFormField(
-              controller: _driverAboutController,
-              textCapitalization: TextCapitalization.sentences,
-              maxLines: 3,
+              controller: _driverExperienceController,
+              keyboardType: TextInputType.number,
               style: TextStyle(color: context.textColor, fontSize: 14),
-              decoration: _buildInputDecoration('About / Bio details', Icons.info_outline_rounded),
-              validator: (value) => value == null || value.trim().isEmpty ? 'Enter bio/experience details' : null,
+              decoration: _buildInputDecoration('Experience (Years)', Icons.workspace_premium_rounded),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) return 'Enter experience years';
+                if (int.tryParse(value) == null) return 'Enter a valid number of years';
+                return null;
+              },
             ),
             const SizedBox(height: 16),
-            Text(
-              'DRIVING LICENSE PHOTO',
-              style: TextStyle(
-                color: context.textColor30,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.0,
-              ),
-            ),
-            const SizedBox(height: 8),
-            GestureDetector(
-              onTap: _pickLicenseImage,
-              child: Container(
-                height: 140,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000),
-                    width: 1.5,
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'DRIVING LICENSE',
+                        style: TextStyle(
+                          color: context.textColor30,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: _pickLicenseImage,
+                        child: Container(
+                          height: 120,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: _pickedLicensePhotoPath != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    File(_pickedLicensePhotoPath!),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                  ),
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF536DFE), size: 24),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Upload License',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(color: context.textColor54, fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: _pickedLicensePhotoPath != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          File(_pickedLicensePhotoPath!),
-                          fit: BoxFit.cover,
-                          width: double.infinity,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'DRIVER SELFIE',
+                        style: TextStyle(
+                          color: context.textColor30,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
                         ),
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF536DFE), size: 28),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Upload driving license photo',
-                            style: TextStyle(color: context.textColor54, fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
-                        ],
                       ),
-              ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: _pickDriverSelfie,
+                        child: Container(
+                          height: 120,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: _pickedDriverSelfiePath != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    File(_pickedDriverSelfiePath!),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                  ),
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF536DFE), size: 24),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Upload Selfie',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(color: context.textColor54, fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -1181,6 +1336,17 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                   return;
                 }
 
+                if (_pickedDriverSelfiePath == null) {
+                  messenger.clearSnackBars();
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Please select driver selfie photo.'),
+                      backgroundColor: Colors.orangeAccent,
+                    ),
+                  );
+                  return;
+                }
+
                 messenger.clearSnackBars();
                 messenger.showSnackBar(
                   const SnackBar(
@@ -1192,7 +1358,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         ),
                         SizedBox(width: 12),
-                        Text('Adding Driver...'),
+                        Text('Uploading photos...'),
                       ],
                     ),
                     duration: Duration(days: 1),
@@ -1200,12 +1366,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 );
 
                 try {
-                  final finalPhotoUrl = await appState.uploadToCloudinary(_pickedLicensePhotoPath!);
-                  if (finalPhotoUrl == null) {
+                  final finalLicenseUrl = await appState.uploadToCloudinary(_pickedLicensePhotoPath!);
+                  final finalSelfieUrl = await appState.uploadToCloudinary(_pickedDriverSelfiePath!);
+
+                  if (finalLicenseUrl == null || finalSelfieUrl == null) {
                     messenger.clearSnackBars();
                     messenger.showSnackBar(
                       const SnackBar(
-                        content: Text('Failed to upload license photo. Please try again.'),
+                        content: Text('Failed to upload photos. Please try again.'),
                         backgroundColor: Colors.redAccent,
                       ),
                     );
@@ -1218,8 +1386,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     'driverName': _driverNameController.text.trim(),
                     'phoneNumber': _driverPhoneController.text.trim(),
                     'address': _driverAddressController.text.trim(),
-                    'about': _driverAboutController.text.trim(),
-                    'licensePhotoUrl': finalPhotoUrl,
+                    'experience': int.tryParse(_driverExperienceController.text.trim()) ?? 0,
+                    'licensePhotoUrl': finalLicenseUrl,
+                    'selfieUrl': finalSelfieUrl,
                     'latitude': appState.customerLatitude + (Random().nextDouble() - 0.5) * 0.02,
                     'longitude': appState.customerLongitude + (Random().nextDouble() - 0.5) * 0.02,
                     'driverGmail': appState.currentGmail ?? 'guest.customer@gmail.com',
@@ -1231,8 +1400,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     _driverNameController.clear();
                     _driverPhoneController.clear();
                     _driverAddressController.clear();
-                    _driverAboutController.clear();
+                    _driverExperienceController.clear();
                     _pickedLicensePhotoPath = null;
+                    _pickedDriverSelfiePath = null;
                   });
 
                   messenger.showSnackBar(
@@ -1273,7 +1443,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Add service center details to list on our platform.',
+              'Add service center details and photo to list on our platform.',
               style: TextStyle(
                 color: context.textColor54,
                 fontSize: 12,
@@ -1327,11 +1497,105 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
               }),
               validator: (value) => value == null || value.trim().isEmpty ? 'Enter address' : null,
             ),
+            const SizedBox(height: 16),
+
+            // Service Center Type Selection
+            Text(
+              'SERVICE CENTER TYPE (SELECT MULTIPLE IF APPLICABLE)',
+              style: TextStyle(
+                color: context.textColor30,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _buildServiceCenterTypeOption('Bike', Icons.motorcycle_rounded),
+                const SizedBox(width: 8),
+                _buildServiceCenterTypeOption('Rickshaw', Icons.electric_rickshaw_rounded),
+                const SizedBox(width: 8),
+                _buildServiceCenterTypeOption('Car', Icons.directions_car_filled_rounded),
+                const SizedBox(width: 8),
+                _buildServiceCenterTypeOption('Truck', Icons.local_shipping_rounded),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Service Center Photo Upload
+            Text(
+              'SERVICE CENTER PHOTO',
+              style: TextStyle(
+                color: context.textColor30,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: _pickServiceCenterPhoto,
+              child: Container(
+                height: 140,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                    width: 1.5,
+                  ),
+                ),
+                child: _pickedServiceCenterPhotoPath != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          File(_pickedServiceCenterPhotoPath!),
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                        ),
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF536DFE), size: 28),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Upload service center photo',
+                            style: TextStyle(color: context.textColor54, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () async {
                 if (!_serviceCenterFormKey.currentState!.validate()) return;
                 final messenger = ScaffoldMessenger.of(context);
+
+                if (_selectedServiceCenterTypes.isEmpty) {
+                  messenger.clearSnackBars();
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Please select at least one Service Center Type.'),
+                      backgroundColor: Colors.orangeAccent,
+                    ),
+                  );
+                  return;
+                }
+
+                if (_pickedServiceCenterPhotoPath == null) {
+                  messenger.clearSnackBars();
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Please select service center photo.'),
+                      backgroundColor: Colors.orangeAccent,
+                    ),
+                  );
+                  return;
+                }
+
                 messenger.clearSnackBars();
                 messenger.showSnackBar(
                   const SnackBar(
@@ -1343,7 +1607,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         ),
                         SizedBox(width: 12),
-                        Text('Adding Service Center...'),
+                        Text('Uploading photo and saving...'),
                       ],
                     ),
                     duration: Duration(days: 1),
@@ -1351,12 +1615,26 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 );
 
                 try {
+                  final finalPhotoUrl = await appState.uploadToCloudinary(_pickedServiceCenterPhotoPath!);
+                  if (finalPhotoUrl == null) {
+                    messenger.clearSnackBars();
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Failed to upload photo. Please try again.'),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                    return;
+                  }
+
                   final docId = 'service_center_${DateTime.now().millisecondsSinceEpoch}';
                   await FirebaseFirestore.instance.collection('service_centers').doc(docId).set({
                     'id': docId,
                     'serviceCenterName': _serviceCenterNameController.text.trim(),
                     'phoneNumber': _serviceCenterPhoneController.text.trim(),
                     'address': _serviceCenterAddressController.text.trim(),
+                    'photoUrl': finalPhotoUrl,
+                    'types': _selectedServiceCenterTypes,
                     'latitude': appState.customerLatitude + (Random().nextDouble() - 0.5) * 0.02,
                     'longitude': appState.customerLongitude + (Random().nextDouble() - 0.5) * 0.02,
                     'ownerGmail': appState.currentGmail ?? 'guest.customer@gmail.com',
@@ -1368,6 +1646,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     _serviceCenterNameController.clear();
                     _serviceCenterPhoneController.clear();
                     _serviceCenterAddressController.clear();
+                    _pickedServiceCenterPhotoPath = null;
+                    _selectedServiceCenterTypes = [];
                   });
 
                   messenger.showSnackBar(
@@ -1394,6 +1674,55 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
               child: const Text('Add Service Center', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServiceCenterTypeOption(String type, IconData icon) {
+    final isSelected = _selectedServiceCenterTypes.contains(type);
+    final isDarkMode = context.isDarkMode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            if (isSelected) {
+              _selectedServiceCenterTypes.remove(type);
+            } else {
+              _selectedServiceCenterTypes.add(type);
+            }
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF536DFE) : Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected
+                  ? Colors.transparent
+                  : (isDarkMode ? const Color(0xFF2E3B4E) : const Color(0xFFE2E8F0)),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? Colors.white : context.textColor70,
+                size: 20,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                type,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : context.textColor70,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1533,7 +1862,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                   return;
                 }
 
-                final hasPass = await _ensureActivePostingPass(context, appState);
+                final hasPass = await _ensureActivePostingPass(context, appState, 'ad');
                 if (!hasPass) return;
 
                 messenger.clearSnackBars();
@@ -2181,7 +2510,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 },
               ),
             const SizedBox(height: 20),
-          ] else if (_selectedAddTab == 'Shop')
+          ] else if (_selectedAddTab == 'Shop Buy & Sell')
             _buildShopForm(appState)
           else if (_selectedAddTab == 'Driver')
             _buildDriverForm(appState)
@@ -2241,8 +2570,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
           ),
           const SizedBox(height: 10),
 
-          // Posting Pass Status Card
-          _buildPostingPassCard(appState),
+
+
+          // Posting Pass Status Cards
+          _buildPostingPassCard(appState, 'vehicle'),
+          const SizedBox(height: 12),
+          _buildPostingPassCard(appState, 'ad'),
           const SizedBox(height: 24),
 
           // Settings Section Title
@@ -2722,6 +3055,15 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
           return true;
         }).toList();
 
+        // Sort by distance from user (nearest first)
+        filteredDocs.sort((a, b) {
+          final dataA = a.data() as Map<String, dynamic>;
+          final dataB = b.data() as Map<String, dynamic>;
+          final distA = appState.getDistanceFromUser(dataA['latitude'] as double? ?? 0.0, dataA['longitude'] as double? ?? 0.0);
+          final distB = appState.getDistanceFromUser(dataB['latitude'] as double? ?? 0.0, dataB['longitude'] as double? ?? 0.0);
+          return distA.compareTo(distB);
+        });
+
         if (filteredDocs.isEmpty) {
           return _buildCustomEmptyState('No Shops Registered', 'There are no registered shops selling/buying vehicles yet.');
         }
@@ -2900,6 +3242,15 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
           }
           return true;
         }).toList();
+
+        // Sort by distance from user (nearest first)
+        filteredDocs.sort((a, b) {
+          final dataA = a.data() as Map<String, dynamic>;
+          final dataB = b.data() as Map<String, dynamic>;
+          final distA = appState.getDistanceFromUser(dataA['latitude'] as double? ?? 0.0, dataA['longitude'] as double? ?? 0.0);
+          final distB = appState.getDistanceFromUser(dataB['latitude'] as double? ?? 0.0, dataB['longitude'] as double? ?? 0.0);
+          return distA.compareTo(distB);
+        });
 
         if (filteredDocs.isEmpty) {
           return _buildCustomEmptyState('No Drivers Registered', 'There are no registered drivers yet.');
@@ -3125,6 +3476,15 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
           return true;
         }).toList();
 
+        // Sort by distance from user (nearest first)
+        filteredDocs.sort((a, b) {
+          final dataA = a.data() as Map<String, dynamic>;
+          final dataB = b.data() as Map<String, dynamic>;
+          final distA = appState.getDistanceFromUser(dataA['latitude'] as double? ?? 0.0, dataA['longitude'] as double? ?? 0.0);
+          final distB = appState.getDistanceFromUser(dataB['latitude'] as double? ?? 0.0, dataB['longitude'] as double? ?? 0.0);
+          return distA.compareTo(distB);
+        });
+
         if (filteredDocs.isEmpty) {
           return _buildCustomEmptyState('No Service Stations', 'There are no registered service centers yet.');
         }
@@ -3147,48 +3507,57 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     final address = data['address'] as String? ?? 'Address';
     final phone = data['phoneNumber'] as String? ?? '';
     final ownerGmail = data['ownerGmail'] as String? ?? '';
+    final photoUrl = data['photoUrl'] as String?;
     final lat = data['latitude'] as double? ?? 0.0;
     final lon = data['longitude'] as double? ?? 0.0;
     final distance = appState.getDistanceFromUser(lat, lon);
     final initial = serviceCenterName.isNotEmpty ? serviceCenterName[0].toUpperCase() : '?';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () => _showServiceCenterDetailsBottomSheet(context, appState, data),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000),
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                width: 100,
-                color: context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                alignment: Alignment.center,
-                child: CachedUserAvatar(
-                  email: ownerGmail,
-                  radius: 32,
-                  fallbackInitial: initial,
-                  textStyle: const TextStyle(
-                    color: Color(0xFF536DFE),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 100,
+                  color: context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  child: photoUrl != null && photoUrl.isNotEmpty
+                      ? Image.network(
+                          photoUrl,
+                          fit: BoxFit.cover,
+                        )
+                      : Center(
+                          child: CachedUserAvatar(
+                            email: ownerGmail,
+                            radius: 32,
+                            fallbackInitial: initial,
+                            textStyle: const TextStyle(
+                              color: Color(0xFF536DFE),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
                 ),
-              ),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(14.0),
@@ -3253,6 +3622,49 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                           ],
                         ),
                       ),
+                      // Serviced Types Badges
+                      if (data['types'] != null && (data['types'] as List).isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: (data['types'] as List).map((t) {
+                            IconData tIcon = Icons.build_rounded;
+                            if (t == 'Bike') {
+                              tIcon = Icons.motorcycle_rounded;
+                            } else if (t == 'Rickshaw') {
+                              tIcon = Icons.electric_rickshaw_rounded;
+                            } else if (t == 'Car') {
+                              tIcon = Icons.directions_car_filled_rounded;
+                            } else if (t == 'Truck') {
+                              tIcon = Icons.local_shipping_rounded;
+                            }
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF536DFE).withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(tIcon, size: 10, color: const Color(0xFF536DFE)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    t.toString(),
+                                    style: const TextStyle(
+                                      color: Color(0xFF536DFE),
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                       const Spacer(),
                       const SizedBox(height: 8),
                       Row(
@@ -3321,8 +3733,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildCustomEmptyState(String title, String subtitle) {
     return Container(
@@ -3828,11 +4241,17 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     }
   }
 
-  Future<bool> _ensureActivePostingPass(BuildContext context, AppState appState) async {
-    if (appState.hasActivePostingPass) return true;
+  Future<bool> _ensureActivePostingPass(BuildContext context, AppState appState, String type) async {
+    final hasPass = type == 'ad' ? appState.hasActiveAdPass : appState.hasActiveVehiclePass;
+    if (hasPass) return true;
 
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDarkMode ? Colors.white : Colors.black;
+
+    final title = type == 'ad' ? 'Ad Posting Pass Required' : 'Vehicle Posting Pass Required';
+    final desc = type == 'ad'
+        ? 'To post advertisements, you need an active 1-Week Ad Posting Pass which costs ₹50. Would you like to buy it now?'
+        : 'To register vehicles or shops, you need an active 1-Month Vehicle Posting Pass which costs ₹50. Would you like to buy it now?';
 
     final wantToBuy = await showDialog<bool>(
       context: context,
@@ -3840,11 +4259,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
         return AlertDialog(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           title: Text(
-            'Posting Pass Required',
+            title,
             style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
           ),
           content: Text(
-            'To post ads or register vehicles, you need an active 1-Month Posting Pass which costs ₹50. Would you like to buy it now?',
+            desc,
             style: TextStyle(color: isDarkMode ? Colors.white70 : Colors.black87),
           ),
           actions: [
@@ -3871,7 +4290,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
       if (!context.mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Insufficient Coins! A 1-Month Posting Pass costs ₹50.'),
+          content: Text(type == 'ad'
+              ? 'Insufficient Coins! An active 1-Week Ad Posting Pass costs ₹50.'
+              : 'Insufficient Coins! An active 1-Month Vehicle Posting Pass costs ₹50.'),
           backgroundColor: Colors.orangeAccent,
           action: SnackBarAction(
             label: 'Recharge',
@@ -3898,15 +4319,17 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
       ),
     );
 
-    final success = await appState.purchasePostingPass();
+    final success = await appState.purchasePostingPass(type);
     if (!context.mounted) return false;
     Navigator.pop(context); // Pop loading indicator
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('1-Month Posting Pass purchased successfully!'),
-          backgroundColor: Color(0xFF10B981),
+        SnackBar(
+          content: Text(type == 'ad'
+              ? '1-Week Ad Posting Pass purchased successfully!'
+              : '1-Month Vehicle Posting Pass purchased successfully!'),
+          backgroundColor: const Color(0xFF10B981),
         ),
       );
       return true;
@@ -3921,18 +4344,24 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     }
   }
 
-  Widget _buildPostingPassCard(AppState appState) {
+  Widget _buildPostingPassCard(AppState appState, String type) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final cardColor = Theme.of(context).cardColor;
-    final hasPass = appState.hasActivePostingPass;
+    final hasPass = type == 'ad' ? appState.hasActiveAdPass : appState.hasActiveVehiclePass;
+    final expiryTimestamp = type == 'ad'
+        ? (appState.adExpiryTimestamp > 0 ? appState.adExpiryTimestamp : appState.postingExpiryTimestamp)
+        : (appState.vehicleExpiryTimestamp > 0 ? appState.vehicleExpiryTimestamp : appState.postingExpiryTimestamp);
 
     String dateStr = 'N/A';
-    if (appState.postingExpiryTimestamp > 0) {
-      dateStr = DateTime.fromMillisecondsSinceEpoch(appState.postingExpiryTimestamp)
+    if (expiryTimestamp > 0) {
+      dateStr = DateTime.fromMillisecondsSinceEpoch(expiryTimestamp)
           .toLocal()
           .toString()
           .substring(0, 10); // YYYY-MM-DD
     }
+
+    final title = type == 'ad' ? '1-Week Ad Posting Pass' : '1-Month Vehicle Posting Pass';
+    final priceLabel = type == 'ad' ? '₹50/Week' : '₹50/Month';
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -3955,17 +4384,17 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
               Row(
                 children: [
                   Icon(
-                    Icons.assignment_turned_in_rounded,
+                    type == 'ad' ? Icons.campaign_rounded : Icons.assignment_turned_in_rounded,
                     color: hasPass ? const Color(0xFF10B981) : Colors.grey,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '1-Month Posting Pass',
+                    title,
                     style: TextStyle(
                       color: context.textColor,
                       fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                      fontSize: 13,
                     ),
                   ),
                 ],
@@ -4022,7 +4451,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
               ),
             ],
           ),
-          if (appState.postingExpiryTimestamp > 0) ...[
+          if (expiryTimestamp > 0) ...[
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -4046,7 +4475,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
-                final success = await _ensureActivePostingPass(context, appState);
+                final success = await _ensureActivePostingPass(context, appState, type);
                 if (success && mounted) {
                   setState(() {});
                 }
@@ -4058,14 +4487,311 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 elevation: 0,
               ),
-              child: const Text(
-                'Buy Pass (₹50)',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              child: Text(
+                'Buy Pass ($priceLabel)',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
               ),
             ),
           ],
         ],
       ),
+    );
+  }
+
+  void _showServiceCenterDetailsBottomSheet(BuildContext context, AppState appState, Map<String, dynamic> data) {
+    final serviceCenterName = data['serviceCenterName'] as String? ?? 'Service Center Name';
+    final address = data['address'] as String? ?? 'Address';
+    final phone = data['phoneNumber'] as String? ?? '';
+    final ownerGmail = data['ownerGmail'] as String? ?? '';
+    final photoUrl = data['photoUrl'] as String? ?? '';
+    final lat = data['latitude'] as double? ?? 0.0;
+    final lon = data['longitude'] as double? ?? 0.0;
+    final distance = appState.getDistanceFromUser(lat, lon);
+    final types = data['types'] as List? ?? [];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Top Drag Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: context.textColor30,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Service Center Image (or default icon)
+              if (photoUrl.isNotEmpty) ...[
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FullScreenImageViewer(imageUrl: photoUrl),
+                      ),
+                    );
+                  },
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 240),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        photoUrl,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // Name & Distance
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      serviceCenterName,
+                      style: TextStyle(
+                        color: context.textColor,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF536DFE).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${distance.toStringAsFixed(1)} Km',
+                      style: const TextStyle(
+                        color: Color(0xFF536DFE),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Serviced Vehicle Types
+              if (types.isNotEmpty) ...[
+                Text(
+                  'TYPES SERVICED',
+                  style: TextStyle(
+                    color: context.textColor30,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: types.map((t) {
+                    IconData tIcon = Icons.build_rounded;
+                    if (t == 'Bike') {
+                      tIcon = Icons.motorcycle_rounded;
+                    } else if (t == 'Rickshaw') {
+                      tIcon = Icons.electric_rickshaw_rounded;
+                    } else if (t == 'Car') {
+                      tIcon = Icons.directions_car_filled_rounded;
+                    } else if (t == 'Truck') {
+                      tIcon = Icons.local_shipping_rounded;
+                    }
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF536DFE).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(tIcon, size: 14, color: const Color(0xFF536DFE)),
+                          const SizedBox(width: 6),
+                          Text(
+                            t.toString(),
+                            style: const TextStyle(
+                              color: Color(0xFF536DFE),
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // Address Info
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Address',
+                          style: TextStyle(color: context.textColor54, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          address,
+                          style: TextStyle(color: context.textColor, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.map_rounded, color: Color(0xFF536DFE), size: 20),
+                    onPressed: () => _openMap(lat, lon, address),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Action Buttons (Call, Chat, Delete if owner)
+              Row(
+                children: [
+                  if (phone.isNotEmpty) ...[
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final Uri launchUri = Uri(
+                            scheme: 'tel',
+                            path: phone,
+                          );
+                          await launchUrl(launchUri);
+                        },
+                        icon: const Icon(Icons.phone_rounded, size: 18),
+                        label: const Text('Call'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  if (ownerGmail != appState.currentGmail) ...[
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context); // Close bottom sheet
+                          final dummyVehicle = Vehicle(
+                            id: data['id'] as String? ?? 'service_center',
+                            ownerName: serviceCenterName,
+                            ownerGmail: ownerGmail,
+                            type: VehicleType.car,
+                            model: 'Service Center Profile',
+                            insidePhotoUrl: '',
+                            outsidePhotoUrl: '',
+                            ratePerKm: 0.0,
+                            isServiceOn: true,
+                            latitude: lat,
+                            longitude: lon,
+                            phoneNumber: phone,
+                            address: address,
+                          );
+                          final thread = appState.getOrCreateThread(dummyVehicle);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(threadId: thread.threadId),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                        label: const Text('Chat'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF536DFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    // Delete listing button for owner
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          Navigator.pop(context); // Close bottom sheet
+                          final wantDelete = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Delete Service Center'),
+                              content: const Text('Are you sure you want to delete this service center listing?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (wantDelete == true) {
+                            await FirebaseFirestore.instance
+                                .collection('service_centers')
+                                .doc(data['id'] as String)
+                                .delete();
+                          }
+                        },
+                        icon: const Icon(Icons.delete_forever_rounded, size: 18),
+                        label: const Text('Delete Listing'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
