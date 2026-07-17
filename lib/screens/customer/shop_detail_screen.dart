@@ -68,24 +68,29 @@ class ShopDetailScreen extends StatelessWidget {
                   background: Stack(
                     fit: StackFit.expand,
                     children: [
-                      photoUrl != null && photoUrl.isNotEmpty
-                          ? GestureDetector(
-                              onTap: () => _openFullScreenImage(context, photoUrl),
-                              child: Image.network(
-                                photoUrl,
-                                fit: BoxFit.cover,
-                              ),
+                      data['photoUrls'] != null && (data['photoUrls'] as List).isNotEmpty
+                          ? ImageCarousel(
+                              imageUrls: List<String>.from(data['photoUrls']),
+                              onTap: (url) => _openFullScreenImage(context, url),
                             )
-                          : Container(
-                              color: context.isDarkMode
-                                  ? const Color(0xFF1E293B)
-                                  : const Color(0xFFF1F5F9),
-                              child: const Icon(
-                                Icons.storefront_rounded,
-                                size: 80,
-                                color: Color(0xFF536DFE),
-                              ),
-                            ),
+                          : (photoUrl != null && photoUrl.isNotEmpty
+                              ? GestureDetector(
+                                  onTap: () => _openFullScreenImage(context, photoUrl),
+                                  child: Image.network(
+                                    photoUrl,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : Container(
+                                  color: context.isDarkMode
+                                      ? const Color(0xFF1E293B)
+                                      : const Color(0xFFF1F5F9),
+                                  child: const Icon(
+                                    Icons.commute_rounded,
+                                    size: 80,
+                                    color: Color(0xFF536DFE),
+                                  ),
+                                )),
                       // Top shadow overlay for text readability
                       const IgnorePointer(
                         child: DecoratedBox(
@@ -511,6 +516,68 @@ class ShopDetailScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class ImageCarousel extends StatefulWidget {
+  final List<String> imageUrls;
+  final Function(String) onTap;
+
+  const ImageCarousel({super.key, required this.imageUrls, required this.onTap});
+
+  @override
+  State<ImageCarousel> createState() => _ImageCarouselState();
+}
+
+class _ImageCarouselState extends State<ImageCarousel> {
+  int _currentPage = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        PageView.builder(
+          itemCount: widget.imageUrls.length,
+          onPageChanged: (page) {
+            setState(() {
+              _currentPage = page;
+            });
+          },
+          itemBuilder: (context, index) {
+            return GestureDetector(
+              onTap: () => widget.onTap(widget.imageUrls[index]),
+              child: Image.network(
+                widget.imageUrls[index],
+                fit: BoxFit.cover,
+              ),
+            );
+          },
+        ),
+        if (widget.imageUrls.length > 1)
+          Positioned(
+            bottom: 24,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(widget.imageUrls.length, (index) {
+                final isSelected = _currentPage == index;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: isSelected ? 18 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.white : Colors.white54,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                );
+              }),
+            ),
+          ),
+      ],
     );
   }
 }
