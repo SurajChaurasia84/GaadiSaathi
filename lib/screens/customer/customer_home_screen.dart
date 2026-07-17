@@ -50,6 +50,17 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
   StreamSubscription<Uri>? _linkSubscription;
   final AppLinks _appLinks = AppLinks();
 
+  List<DocumentSnapshot> _shops = [];
+  List<DocumentSnapshot> _drivers = [];
+  List<DocumentSnapshot> _serviceCenters = [];
+  bool _shopsLoading = true;
+  bool _driversLoading = true;
+  bool _serviceCentersLoading = true;
+
+  StreamSubscription<QuerySnapshot>? _shopsSubscription;
+  StreamSubscription<QuerySnapshot>? _driversSubscription;
+  StreamSubscription<QuerySnapshot>? _serviceCentersSubscription;
+
   String _selectedAddTab = 'Vehicle';
 
   // Form keys and controllers for custom vehicle addition
@@ -247,6 +258,33 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     _driversStream = FirebaseFirestore.instance.collection('drivers').orderBy('timestamp', descending: true).snapshots();
     _serviceCentersStream = FirebaseFirestore.instance.collection('service_centers').orderBy('timestamp', descending: true).snapshots();
 
+    _shopsSubscription = _shopsStream.listen((snapshot) {
+      if (mounted) {
+        setState(() {
+          _shops = snapshot.docs;
+          _shopsLoading = false;
+        });
+      }
+    });
+
+    _driversSubscription = _driversStream.listen((snapshot) {
+      if (mounted) {
+        setState(() {
+          _drivers = snapshot.docs;
+          _driversLoading = false;
+        });
+      }
+    });
+
+    _serviceCentersSubscription = _serviceCentersStream.listen((snapshot) {
+      if (mounted) {
+        setState(() {
+          _serviceCenters = snapshot.docs;
+          _serviceCentersLoading = false;
+        });
+      }
+    });
+
     // Fetch and randomize ads on startup
     FirebaseFirestore.instance.collection('ads').get().then((snapshot) {
       if (mounted) {
@@ -311,6 +349,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     _adsTimer?.cancel();
     _adsPageController.dispose();
     _linkSubscription?.cancel();
+    _shopsSubscription?.cancel();
+    _driversSubscription?.cancel();
+    _serviceCentersSubscription?.cancel();
     super.dispose();
   }
 
@@ -606,33 +647,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
           _buildCategoryFilterRow(appState),
           const SizedBox(height: 16),
 
-          if (_customTabSelection == null) ...[
-            // Vehicles List Title
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'VEHICLES WITHIN RANGE',
-                  style: TextStyle(
-                    color: context.textColor30,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-                if (appState.isLocationOn)
-                  Text(
-                    '${vehicles.length} Active Services',
-                    style: const TextStyle(
-                      color: Color(0xFF10B981),
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-          ],
+
 
           // Content List
           if (_customTabSelection == 'Shop')
@@ -700,7 +715,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
             );
           }),
           _buildFilterChip(
-            label: 'Shop',
+            label: 'Shop Buy & Sell',
             isSelected: _customTabSelection == 'Shop',
             onTap: () {
               setState(() {
@@ -2670,7 +2685,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                 _buildSettingTile(
                   context: context,
                   icon: Icons.history_rounded,
-                  title: 'Vehicle History',
+                  title: 'Service History',
                   onTap: () {
                     Navigator.push(
                       context,
@@ -3073,57 +3088,52 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
   }
 
   Widget _buildShopsList(AppState appState) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _shopsStream,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFF536DFE)));
-        }
-        final docs = snapshot.data!.docs;
-        final filteredDocs = docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          final expiry = data['expiryTimestamp'] as int?;
-          if (expiry != null && expiry < DateTime.now().millisecondsSinceEpoch) {
-            return false;
-          }
-          if (appState.searchQuery.isNotEmpty) {
-            final query = appState.searchQuery.toLowerCase();
-            final nameMatch = (data['shopName'] as String? ?? '').toLowerCase().contains(query);
-            final ownerMatch = (data['ownerName'] as String? ?? '').toLowerCase().contains(query);
-            final addressMatch = (data['address'] as String? ?? '').toLowerCase().contains(query);
-            if (!nameMatch && !ownerMatch && !addressMatch) return false;
-          }
-          return true;
-        }).toList();
+    if (_shopsLoading) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF536DFE)));
+    }
+    final docs = _shops;
+    final filteredDocs = docs.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      final expiry = data['expiryTimestamp'] as int?;
+      if (expiry != null && expiry < DateTime.now().millisecondsSinceEpoch) {
+        return false;
+      }
+      if (appState.searchQuery.isNotEmpty) {
+        final query = appState.searchQuery.toLowerCase();
+        final nameMatch = (data['shopName'] as String? ?? '').toLowerCase().contains(query);
+        final ownerMatch = (data['ownerName'] as String? ?? '').toLowerCase().contains(query);
+        final addressMatch = (data['address'] as String? ?? '').toLowerCase().contains(query);
+        if (!nameMatch && !ownerMatch && !addressMatch) return false;
+      }
+      return true;
+    }).toList();
 
-        // Sort by distance from user (nearest first)
-        filteredDocs.sort((a, b) {
-          final dataA = a.data() as Map<String, dynamic>;
-          final dataB = b.data() as Map<String, dynamic>;
-          final distA = appState.getDistanceFromUser(dataA['latitude'] as double? ?? 0.0, dataA['longitude'] as double? ?? 0.0);
-          final distB = appState.getDistanceFromUser(dataB['latitude'] as double? ?? 0.0, dataB['longitude'] as double? ?? 0.0);
-          return distA.compareTo(distB);
-        });
+    // Sort by distance from user (nearest first)
+    filteredDocs.sort((a, b) {
+      final dataA = a.data() as Map<String, dynamic>;
+      final dataB = b.data() as Map<String, dynamic>;
+      final distA = appState.getDistanceFromUser(dataA['latitude'] as double? ?? 0.0, dataA['longitude'] as double? ?? 0.0);
+      final distB = appState.getDistanceFromUser(dataB['latitude'] as double? ?? 0.0, dataB['longitude'] as double? ?? 0.0);
+      return distA.compareTo(distB);
+    });
 
-        if (filteredDocs.isEmpty) {
-          return _buildCustomEmptyState('No Shops Registered', 'There are no registered shops selling/buying vehicles yet.');
-        }
+    if (filteredDocs.isEmpty) {
+      return _buildCustomEmptyState('No Shops Registered', 'There are no registered shops selling/buying vehicles yet.');
+    }
 
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.75,
-          ),
-          itemCount: filteredDocs.length,
-          itemBuilder: (context, index) {
-            final data = filteredDocs[index].data() as Map<String, dynamic>;
-            return _buildShopCard(context, appState, data);
-          },
-        );
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.75,
+      ),
+      itemCount: filteredDocs.length,
+      itemBuilder: (context, index) {
+        final data = filteredDocs[index].data() as Map<String, dynamic>;
+        return _buildShopCard(context, appState, data);
       },
     );
   }
@@ -3266,46 +3276,41 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
   }
 
   Widget _buildDriversList(AppState appState) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _driversStream,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFF536DFE)));
-        }
-        final docs = snapshot.data!.docs;
-        final filteredDocs = docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          if (appState.searchQuery.isNotEmpty) {
-            final query = appState.searchQuery.toLowerCase();
-            final nameMatch = (data['driverName'] as String? ?? '').toLowerCase().contains(query);
-            final addressMatch = (data['address'] as String? ?? '').toLowerCase().contains(query);
-            if (!nameMatch && !addressMatch) return false;
-          }
-          return true;
-        }).toList();
+    if (_driversLoading) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF536DFE)));
+    }
+    final docs = _drivers;
+    final filteredDocs = docs.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      if (appState.searchQuery.isNotEmpty) {
+        final query = appState.searchQuery.toLowerCase();
+        final nameMatch = (data['driverName'] as String? ?? '').toLowerCase().contains(query);
+        final addressMatch = (data['address'] as String? ?? '').toLowerCase().contains(query);
+        if (!nameMatch && !addressMatch) return false;
+      }
+      return true;
+    }).toList();
 
-        // Sort by distance from user (nearest first)
-        filteredDocs.sort((a, b) {
-          final dataA = a.data() as Map<String, dynamic>;
-          final dataB = b.data() as Map<String, dynamic>;
-          final distA = appState.getDistanceFromUser(dataA['latitude'] as double? ?? 0.0, dataA['longitude'] as double? ?? 0.0);
-          final distB = appState.getDistanceFromUser(dataB['latitude'] as double? ?? 0.0, dataB['longitude'] as double? ?? 0.0);
-          return distA.compareTo(distB);
-        });
+    // Sort by distance from user (nearest first)
+    filteredDocs.sort((a, b) {
+      final dataA = a.data() as Map<String, dynamic>;
+      final dataB = b.data() as Map<String, dynamic>;
+      final distA = appState.getDistanceFromUser(dataA['latitude'] as double? ?? 0.0, dataA['longitude'] as double? ?? 0.0);
+      final distB = appState.getDistanceFromUser(dataB['latitude'] as double? ?? 0.0, dataB['longitude'] as double? ?? 0.0);
+      return distA.compareTo(distB);
+    });
 
-        if (filteredDocs.isEmpty) {
-          return _buildCustomEmptyState('No Drivers Registered', 'There are no registered drivers yet.');
-        }
+    if (filteredDocs.isEmpty) {
+      return _buildCustomEmptyState('No Drivers Registered', 'There are no registered drivers yet.');
+    }
 
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: filteredDocs.length,
-          itemBuilder: (context, index) {
-            final data = filteredDocs[index].data() as Map<String, dynamic>;
-            return _buildDriverCard(context, appState, data);
-          },
-        );
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: filteredDocs.length,
+      itemBuilder: (context, index) {
+        final data = filteredDocs[index].data() as Map<String, dynamic>;
+        return _buildDriverCard(context, appState, data);
       },
     );
   }
@@ -3499,46 +3504,41 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
   }
 
   Widget _buildServiceCentersList(AppState appState) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _serviceCentersStream,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFF536DFE)));
-        }
-        final docs = snapshot.data!.docs;
-        final filteredDocs = docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          if (appState.searchQuery.isNotEmpty) {
-            final query = appState.searchQuery.toLowerCase();
-            final nameMatch = (data['serviceCenterName'] as String? ?? '').toLowerCase().contains(query);
-            final addressMatch = (data['address'] as String? ?? '').toLowerCase().contains(query);
-            if (!nameMatch && !addressMatch) return false;
-          }
-          return true;
-        }).toList();
+    if (_serviceCentersLoading) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF536DFE)));
+    }
+    final docs = _serviceCenters;
+    final filteredDocs = docs.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      if (appState.searchQuery.isNotEmpty) {
+        final query = appState.searchQuery.toLowerCase();
+        final nameMatch = (data['serviceCenterName'] as String? ?? '').toLowerCase().contains(query);
+        final addressMatch = (data['address'] as String? ?? '').toLowerCase().contains(query);
+        if (!nameMatch && !addressMatch) return false;
+      }
+      return true;
+    }).toList();
 
-        // Sort by distance from user (nearest first)
-        filteredDocs.sort((a, b) {
-          final dataA = a.data() as Map<String, dynamic>;
-          final dataB = b.data() as Map<String, dynamic>;
-          final distA = appState.getDistanceFromUser(dataA['latitude'] as double? ?? 0.0, dataA['longitude'] as double? ?? 0.0);
-          final distB = appState.getDistanceFromUser(dataB['latitude'] as double? ?? 0.0, dataB['longitude'] as double? ?? 0.0);
-          return distA.compareTo(distB);
-        });
+    // Sort by distance from user (nearest first)
+    filteredDocs.sort((a, b) {
+      final dataA = a.data() as Map<String, dynamic>;
+      final dataB = b.data() as Map<String, dynamic>;
+      final distA = appState.getDistanceFromUser(dataA['latitude'] as double? ?? 0.0, dataA['longitude'] as double? ?? 0.0);
+      final distB = appState.getDistanceFromUser(dataB['latitude'] as double? ?? 0.0, dataB['longitude'] as double? ?? 0.0);
+      return distA.compareTo(distB);
+    });
 
-        if (filteredDocs.isEmpty) {
-          return _buildCustomEmptyState('No Service Stations', 'There are no registered service centers yet.');
-        }
+    if (filteredDocs.isEmpty) {
+      return _buildCustomEmptyState('No Service Stations', 'There are no registered service centers yet.');
+    }
 
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: filteredDocs.length,
-          itemBuilder: (context, index) {
-            final data = filteredDocs[index].data() as Map<String, dynamic>;
-            return _buildServiceCenterCard(context, appState, data);
-          },
-        );
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: filteredDocs.length,
+      itemBuilder: (context, index) {
+        final data = filteredDocs[index].data() as Map<String, dynamic>;
+        return _buildServiceCenterCard(context, appState, data);
       },
     );
   }
