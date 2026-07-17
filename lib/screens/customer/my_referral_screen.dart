@@ -16,6 +16,8 @@ class MyReferralScreen extends StatefulWidget {
 class _MyReferralScreenState extends State<MyReferralScreen> {
   final TextEditingController _codeController = TextEditingController();
   bool _isRedeeming = false;
+  String? _lastReferralCode;
+  Stream<QuerySnapshot>? _referralsStream;
 
   @override
   void dispose() {
@@ -45,6 +47,14 @@ class _MyReferralScreenState extends State<MyReferralScreen> {
     final cardColor = Theme.of(context).cardColor;
 
     final referralCode = appState.referralCode ?? '------';
+
+    if (_referralsStream == null || _lastReferralCode != referralCode) {
+      _lastReferralCode = referralCode;
+      _referralsStream = FirebaseFirestore.instance
+          .collection('users')
+          .where('redeemedCode', isEqualTo: referralCode)
+          .snapshots();
+    }
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -372,10 +382,7 @@ class _MyReferralScreenState extends State<MyReferralScreen> {
 
             // Referral list StreamBuilder
             StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .where('redeemedCode', isEqualTo: referralCode)
-                  .snapshots(),
+              stream: _referralsStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
