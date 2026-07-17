@@ -83,10 +83,10 @@ class _MyReferralScreenState extends State<MyReferralScreen> {
                 children: [
                   Image.asset(
                     'assets/coin.png',
-                    width: 72,
-                    height: 72,
+                    width: 102,
+                    height: 102,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 1),
                   Text(
                     'Refer & Get Coins',
                     style: TextStyle(
@@ -124,8 +124,8 @@ class _MyReferralScreenState extends State<MyReferralScreen> {
                 children: [
                   Image.asset(
                     'assets/coin.png',
-                    width: 40,
-                    height: 40,
+                    width: 52,
+                    height: 52,
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -133,7 +133,7 @@ class _MyReferralScreenState extends State<MyReferralScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Gaadi Saathi Coins',
+                          'Total Collect Coin',
                           style: TextStyle(
                             color: textColor54,
                             fontSize: 11,
