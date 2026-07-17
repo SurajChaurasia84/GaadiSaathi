@@ -2,11 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
 import 'add_edit_vehicle_screen.dart';
 import 'shop_detail_screen.dart';
 import 'driver_detail_screen.dart';
+import '../chat_screen.dart';
 
 class VehicleHistoryScreen extends StatelessWidget {
   const VehicleHistoryScreen({super.key});
@@ -343,12 +345,12 @@ class VehicleHistoryScreen extends StatelessWidget {
             final doc = docs[index];
             final data = doc.data() as Map<String, dynamic>;
             final adTitle = data['title'] as String? ?? 'Ad Banner';
-            final adDesc = data['desc'] as String? ?? '';
-            final photoUrl = data['photoUrl'] as String? ?? '';
+            final adDesc = data['description'] as String? ?? '';
+            final photoUrl = (data['adPhotoUrl'] ?? data['photoUrl']) as String? ?? '';
 
             return GestureDetector(
               onTap: () {
-                _showAdDetailsBottomSheet(ctx, data);
+                _showAdDetailDialog(ctx, appState, data);
               },
               onLongPress: () {
                 _showDeleteConfirmDialog(
@@ -370,7 +372,7 @@ class VehicleHistoryScreen extends StatelessWidget {
                 title: adTitle,
                 subtitle1: adDesc,
                 subtitle2: '',
-                address: '',
+                address: data['address'] as String? ?? '',
                 photoUrl: photoUrl,
                 badgeLabel: 'Ad Campaign',
               ),
@@ -391,6 +393,7 @@ class VehicleHistoryScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
+        final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
         return AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -402,7 +405,7 @@ class VehicleHistoryScreen extends StatelessWidget {
               Text(
                 title,
                 style: TextStyle(
-                  color: dialogContext.textColor,
+                  color: isDark ? Colors.white : Colors.black,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -410,7 +413,7 @@ class VehicleHistoryScreen extends StatelessWidget {
           ),
           content: Text(
             message,
-            style: TextStyle(color: dialogContext.textColor70),
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
             TextButton(
@@ -453,6 +456,7 @@ class VehicleHistoryScreen extends StatelessWidget {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext loadingContext) {
+        final isDark = Theme.of(loadingContext).brightness == Brightness.dark;
         return PopScope(
           canPop: false,
           child: AlertDialog(
@@ -469,7 +473,7 @@ class VehicleHistoryScreen extends StatelessWidget {
                   child: Text(
                     loadingText,
                     style: TextStyle(
-                      color: loadingContext.textColor,
+                      color: isDark ? Colors.white : Colors.black,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -517,6 +521,7 @@ class VehicleHistoryScreen extends StatelessWidget {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext loadingContext) {
+        final isDark = Theme.of(loadingContext).brightness == Brightness.dark;
         return PopScope(
           canPop: false,
           child: AlertDialog(
@@ -533,7 +538,7 @@ class VehicleHistoryScreen extends StatelessWidget {
                   child: Text(
                     'Deleting vehicle...',
                     style: TextStyle(
-                      color: loadingContext.textColor,
+                      color: isDark ? Colors.white : Colors.black,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -579,6 +584,7 @@ class VehicleHistoryScreen extends StatelessWidget {
 
   // ── General Empty State Builder ───────────────────────────────────────────
   Widget _buildEmptyState(BuildContext context, String title, String desc, IconData icon) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -600,7 +606,7 @@ class VehicleHistoryScreen extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              color: context.textColor,
+              color: isDark ? Colors.white : Colors.black,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -608,7 +614,7 @@ class VehicleHistoryScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             desc,
-            style: TextStyle(color: context.textColor54, fontSize: 13),
+            style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 13),
           ),
         ],
       ),
@@ -618,6 +624,10 @@ class VehicleHistoryScreen extends StatelessWidget {
   // ── Card Builder for Vehicles ─────────────────────────────────────────────
   Widget _buildVehicleCard(BuildContext context, Vehicle vehicle) {
     final isActive = vehicle.isServiceOn;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final textColor54 = isDark ? Colors.white54 : Colors.black54;
+    final textColor30 = isDark ? Colors.white30 : Colors.black38;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -625,15 +635,12 @@ class VehicleHistoryScreen extends StatelessWidget {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: context.isDarkMode
-              ? const Color(0x1AFFFFFF)
-              : const Color(0x10000000),
+          color: isDark ? const Color(0x1AFFFFFF) : const Color(0x10000000),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black
-                .withValues(alpha: context.isDarkMode ? 0.15 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -665,7 +672,7 @@ class VehicleHistoryScreen extends StatelessWidget {
                     Text(
                       vehicle.model,
                       style: TextStyle(
-                        color: context.textColor,
+                        color: textColor,
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
@@ -675,13 +682,12 @@ class VehicleHistoryScreen extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.speed_rounded,
-                            color: context.textColor54, size: 13),
+                        Icon(Icons.speed_rounded, color: textColor54, size: 13),
                         const SizedBox(width: 4),
                         Text(
                           '₹${vehicle.ratePerKm.toStringAsFixed(0)}/km',
                           style: TextStyle(
-                            color: context.textColor54,
+                            color: textColor54,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -693,14 +699,12 @@ class VehicleHistoryScreen extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.location_on_outlined,
-                              color: context.textColor30, size: 12),
+                          Icon(Icons.location_on_outlined, color: textColor30, size: 12),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               vehicle.address!,
-                              style: TextStyle(
-                                  color: context.textColor30, fontSize: 11),
+                              style: TextStyle(color: textColor30, fontSize: 11),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -713,13 +717,11 @@ class VehicleHistoryScreen extends StatelessWidget {
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          Icon(Icons.phone_outlined,
-                              color: context.textColor30, size: 12),
+                          Icon(Icons.phone_outlined, color: textColor30, size: 12),
                           const SizedBox(width: 4),
                           Text(
                             vehicle.phoneNumber!,
-                            style: TextStyle(
-                                color: context.textColor30, fontSize: 11),
+                            style: TextStyle(color: textColor30, fontSize: 11),
                           ),
                         ],
                       ),
@@ -744,21 +746,23 @@ class VehicleHistoryScreen extends StatelessWidget {
     required String photoUrl,
     required String badgeLabel,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final textColor54 = isDark ? Colors.white54 : Colors.black54;
+    final textColor30 = isDark ? Colors.white30 : Colors.black38;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: context.isDarkMode
-              ? const Color(0x1AFFFFFF)
-              : const Color(0x10000000),
+          color: isDark ? const Color(0x1AFFFFFF) : const Color(0x10000000),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black
-                .withValues(alpha: context.isDarkMode ? 0.15 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -781,7 +785,7 @@ class VehicleHistoryScreen extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        color: context.textColor,
+                        color: textColor,
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
@@ -793,7 +797,7 @@ class VehicleHistoryScreen extends StatelessWidget {
                       Text(
                         subtitle1,
                         style: TextStyle(
-                          color: context.textColor54,
+                          color: textColor54,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -804,7 +808,7 @@ class VehicleHistoryScreen extends StatelessWidget {
                       Text(
                         subtitle2,
                         style: TextStyle(
-                          color: context.textColor54,
+                          color: textColor54,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -815,14 +819,12 @@ class VehicleHistoryScreen extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.location_on_outlined,
-                              color: context.textColor30, size: 12),
+                          Icon(Icons.location_on_outlined, color: textColor30, size: 12),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               address,
-                              style: TextStyle(
-                                  color: context.textColor30, fontSize: 11),
+                              style: TextStyle(color: textColor30, fontSize: 11),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -929,6 +931,9 @@ class VehicleHistoryScreen extends StatelessWidget {
     final photoUrl = data['photoUrl'] as String?;
     final types = List<String>.from(data['types'] ?? []);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final textColor54 = isDarkMode ? Colors.white54 : Colors.black54;
+    final textColor30 = isDarkMode ? Colors.white30 : Colors.black38;
 
     showModalBottomSheet(
       context: context,
@@ -971,7 +976,7 @@ class VehicleHistoryScreen extends StatelessWidget {
               Text(
                 name,
                 style: TextStyle(
-                  color: context.textColor,
+                  color: textColor,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -984,7 +989,7 @@ class VehicleHistoryScreen extends StatelessWidget {
                   Expanded(
                     child: Text(
                       address,
-                      style: TextStyle(color: context.textColor54, fontSize: 13),
+                      style: TextStyle(color: textColor54, fontSize: 13),
                     ),
                   ),
                 ],
@@ -997,7 +1002,7 @@ class VehicleHistoryScreen extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(
                       phone,
-                      style: TextStyle(color: context.textColor54, fontSize: 13),
+                      style: TextStyle(color: textColor54, fontSize: 13),
                     ),
                   ],
                 ),
@@ -1006,7 +1011,7 @@ class VehicleHistoryScreen extends StatelessWidget {
               Text(
                 'SERVICED VEHICLES',
                 style: TextStyle(
-                  color: context.textColor30,
+                  color: textColor30,
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 0.5,
@@ -1043,101 +1048,302 @@ class VehicleHistoryScreen extends StatelessWidget {
     );
   }
 
-  void _showAdDetailsBottomSheet(BuildContext context, Map<String, dynamic> data) {
-    final title = data['title'] as String? ?? 'Ad Banner';
-    final desc = data['desc'] as String? ?? '';
-    final photoUrl = data['photoUrl'] as String?;
+  void _showAdDetailDialog(BuildContext context, AppState appState, Map<String, dynamic> data) {
+    final title = data['title'] as String? ?? 'Advertisement';
+    final desc = data['description'] as String? ?? '';
     final phone = data['phoneNumber'] as String? ?? '';
-    final address = data['address'] as String? ?? '';
+    final address = data['address'] as String? ?? 'Address';
+    final ownerGmail = data['ownerGmail'] as String? ?? '';
+    final ownerName = data['ownerName'] as String? ?? 'Advertiser';
+    final photoUrl = (data['adPhotoUrl'] ?? data['photoUrl']) as String? ?? '';
+    final lat = data['latitude'] as double? ?? 0.0;
+    final lon = data['longitude'] as double? ?? 0.0;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final textColor54 = isDarkMode ? Colors.white54 : Colors.black54;
+    final textColor30 = isDarkMode ? Colors.white30 : Colors.black38;
+    final textColor70 = isDarkMode ? Colors.white70 : Colors.black87;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       builder: (context) {
         return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Top Drag Handle
               Center(
                 child: Container(
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: context.isDarkMode ? Colors.white24 : Colors.black12,
+                    color: textColor30,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              if (photoUrl != null && photoUrl.isNotEmpty) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.network(
-                    photoUrl,
-                    height: 180,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+              const SizedBox(height: 24),
+              // Ad Banner Image
+              if (photoUrl.isNotEmpty) ...[
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FullScreenImageViewer(imageUrl: photoUrl),
+                      ),
+                    );
+                  },
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 300),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        photoUrl,
+                        width: double.infinity,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
               ],
+              // Title
               Text(
                 title,
                 style: TextStyle(
-                  color: context.textColor,
-                  fontSize: 18,
+                  color: textColor,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                desc,
-                style: TextStyle(
-                  color: context.textColor70,
-                  fontSize: 13,
-                  height: 1.4,
+              if (desc.isNotEmpty) ...[
+                Text(
+                  desc,
+                  style: TextStyle(
+                    color: textColor70,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
                 ),
+                const SizedBox(height: 16),
+              ],
+              const Divider(),
+              const SizedBox(height: 12),
+              // Advertiser Info
+              StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .where('email', isEqualTo: ownerGmail)
+                    .limit(1)
+                    .snapshots(),
+                builder: (context, userSnapshot) {
+                  String displayName = ownerName != 'Advertiser' ? ownerName : (ownerGmail.isNotEmpty ? ownerGmail.split('@').first : 'Advertiser');
+                  String? userPhoto;
+                  
+                  if (userSnapshot.hasData && userSnapshot.data!.docs.isNotEmpty) {
+                    final userData = userSnapshot.data!.docs.first.data();
+                    displayName = userData['name'] as String? ?? displayName;
+                    userPhoto = userData['photoUrl'] as String?;
+                  }
+
+                  final hasPhoto = userPhoto != null && userPhoto.isNotEmpty;
+                  final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
+
+                  return Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: const Color(0xFF536DFE).withValues(alpha: 0.1),
+                        backgroundImage: hasPhoto ? NetworkImage(userPhoto) : null,
+                        child: hasPhoto
+                            ? null
+                            : Text(
+                                initial,
+                                style: const TextStyle(color: Color(0xFF536DFE), fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayName,
+                              style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            Text(
+                              'Advertiser',
+                              style: TextStyle(color: textColor54, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
-              if (address.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on_rounded, color: Colors.redAccent, size: 14),
-                    const SizedBox(width: 6),
+              const SizedBox(height: 20),
+              // Location / Address Row (clickable to Map)
+              if (address.isNotEmpty)
+                InkWell(
+                  onTap: () => _openMap(lat, lon, address),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            address,
+                            style: TextStyle(
+                              color: textColor54,
+                              fontSize: 13,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 24),
+              // Bottom CTA Action Buttons
+              Row(
+                children: [
+                  if (phone.isNotEmpty) ...[
                     Expanded(
-                      child: Text(
-                        address,
-                        style: TextStyle(color: context.textColor54, fontSize: 13),
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final Uri launchUri = Uri(
+                            scheme: 'tel',
+                            path: phone,
+                          );
+                          await launchUrl(launchUri);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.phone_rounded, size: 18),
+                        label: const Text('Call Advertiser', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ),
+                    const SizedBox(width: 12),
                   ],
-                ),
-              ],
-              if (phone.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(Icons.phone_rounded, color: const Color(0xFF10B981), size: 14),
-                    const SizedBox(width: 6),
-                    Text(
-                      phone,
-                      style: TextStyle(color: context.textColor54, fontSize: 13),
+                  if (ownerGmail != appState.currentGmail)
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          final dummyVehicle = Vehicle(
+                            id: data['id'] as String? ?? 'ad',
+                            ownerName: ownerName,
+                            ownerGmail: ownerGmail,
+                            type: VehicleType.car,
+                            model: title,
+                            insidePhotoUrl: '',
+                            outsidePhotoUrl: '',
+                            ratePerKm: 0.0,
+                            isServiceOn: true,
+                            latitude: lat,
+                            longitude: lon,
+                            phoneNumber: phone,
+                            address: address,
+                          );
+                          final thread = appState.getOrCreateThread(dummyVehicle);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(threadId: thread.threadId),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF536DFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                        label: const Text('Chat', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
                     ),
-                  ],
-                ),
-              ],
+                ],
+              ),
               const SizedBox(height: 24),
             ],
           ),
         );
       },
+    );
+  }
+
+  void _openMap(double latitude, double longitude, String address) async {
+    final String googleMapsUrl = "https://www.google.com/maps/search/?api=1&query=$latitude,$longitude";
+    final String appleMapsUrl = "https://maps.apple.com/?q=$address&ll=$latitude,$longitude";
+
+    if (Platform.isAndroid) {
+      if (await canLaunchUrl(Uri.parse(googleMapsUrl))) {
+        await launchUrl(Uri.parse(googleMapsUrl), mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(Uri.parse(googleMapsUrl));
+      }
+    } else if (Platform.isIOS) {
+      if (await canLaunchUrl(Uri.parse(appleMapsUrl))) {
+        await launchUrl(Uri.parse(appleMapsUrl));
+      } else {
+        final encodedAddress = Uri.encodeComponent(address);
+        final String fallbackUrl = "https://maps.google.com/?q=$encodedAddress";
+        await launchUrl(Uri.parse(fallbackUrl));
+      }
+    }
+  }
+}
+
+class FullScreenImageViewer extends StatelessWidget {
+  final String imageUrl;
+
+  const FullScreenImageViewer({super.key, required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            width: double.infinity,
+            height: double.infinity,
+          ),
+        ),
+      ),
     );
   }
 }
