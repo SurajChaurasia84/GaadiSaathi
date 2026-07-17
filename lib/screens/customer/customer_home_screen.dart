@@ -479,20 +479,30 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                                   // ignore: deprecated_member_use
                                   Share.share(text);
                                 },
-                                icon: const Icon(Icons.share_rounded, size: 16, color: Color(0xFF536DFE)),
-                                label: const Text(
+                                icon: Icon(
+                                  Icons.share_rounded,
+                                  size: 16,
+                                  color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFFBBF24) : const Color(0xFFEA580C),
+                                ),
+                                label: Text(
                                   'Refer App',
                                   style: TextStyle(
-                                    color: Color(0xFF536DFE),
+                                    color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFFBBF24) : const Color(0xFFEA580C),
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0x1FEA580C) : const Color(0xFFFFFBEB),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    side: const BorderSide(color: Color(0xFF536DFE), width: 1),
+                                    borderRadius: BorderRadius.circular(22),
+                                    side: BorderSide(
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? const Color(0xFFD97706).withValues(alpha: 0.5)
+                                          : const Color(0xFFF59E0B),
+                                      width: 1.5,
+                                    ),
                                   ),
                                 ),
                               ),
