@@ -15,11 +15,14 @@ class DriverDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    final photoUrl = data['licensePhotoUrl'] as String?;
+    final selfieUrl = data['selfieUrl'] as String?;
+    final licensePhotoUrl = data['licensePhotoUrl'] as String?;
+    final photoUrl = selfieUrl ?? licensePhotoUrl;
     final driverName = data['driverName'] as String? ?? 'Driver Details';
     final phone = data['phoneNumber'] as String? ?? '';
     final address = data['address'] as String? ?? 'Address';
-    final about = data['about'] as String? ?? 'No details provided.';
+    final experienceVal = data['experience'];
+    final experience = experienceVal != null ? '$experienceVal Years' : 'N/A';
     final driverGmail = data['driverGmail'] as String? ?? '';
     final lat = data['latitude'] as double? ?? 0.0;
     final lon = data['longitude'] as double? ?? 0.0;
@@ -249,18 +252,18 @@ class DriverDetailScreen extends StatelessWidget {
                     Divider(color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000), height: 1),
                     const SizedBox(height: 16),
 
-                    // About / Experience Section
+                    // Experience Section
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.info_outline_rounded, color: Color(0xFF536DFE), size: 20),
+                        const Icon(Icons.workspace_premium_rounded, color: Color(0xFF10B981), size: 20),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'About Driver',
+                                'Experience',
                                 style: TextStyle(
                                   color: context.textColor54,
                                   fontSize: 12,
@@ -269,11 +272,11 @@ class DriverDetailScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                about,
+                                experience,
                                 style: TextStyle(
                                   color: context.textColor,
                                   fontSize: 14,
-                                  height: 1.4,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
@@ -281,9 +284,51 @@ class DriverDetailScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     Divider(color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000), height: 1),
                     const SizedBox(height: 16),
+
+                    // Driving License Photo Section (if available)
+                    if (licensePhotoUrl != null && licensePhotoUrl.isNotEmpty) ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.badge_rounded, color: Color(0xFF536DFE), size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Driving License',
+                                  style: TextStyle(
+                                    color: context.textColor54,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                GestureDetector(
+                                  onTap: () => _openFullScreenImage(context, licensePhotoUrl),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(
+                                      licensePhotoUrl,
+                                      height: 120,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Divider(color: context.isDarkMode ? const Color(0x0AFFFFFF) : const Color(0x08000000), height: 1),
+                      const SizedBox(height: 16),
+                    ],
 
                     // Owner Profile Info Row
                     Row(
