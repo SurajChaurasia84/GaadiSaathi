@@ -88,21 +88,7 @@ class _VehicleCardState extends State<VehicleCard> {
                   height: 150,
                   width: double.infinity,
                 ),
-                // Gradient Overlay
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Theme.of(context).cardColor.withValues(alpha: 0.9),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+
                 // Distance Pill
                 Positioned(
                   top: 12,
