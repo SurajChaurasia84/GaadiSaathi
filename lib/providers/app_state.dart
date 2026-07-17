@@ -30,8 +30,12 @@ class AppState extends ChangeNotifier {
   String? currentUserAddress;
   int userCoins = 0;
   int postingExpiryTimestamp = 0;
+  int vehicleExpiryTimestamp = 0;
+  int adExpiryTimestamp = 0;
 
-  bool get hasActivePostingPass => postingExpiryTimestamp > DateTime.now().millisecondsSinceEpoch;
+  bool get hasActivePostingPass => (vehicleExpiryTimestamp > 0 ? vehicleExpiryTimestamp : postingExpiryTimestamp) > DateTime.now().millisecondsSinceEpoch;
+  bool get hasActiveVehiclePass => (vehicleExpiryTimestamp > 0 ? vehicleExpiryTimestamp : postingExpiryTimestamp) > DateTime.now().millisecondsSinceEpoch;
+  bool get hasActiveAdPass => (adExpiryTimestamp > 0 ? adExpiryTimestamp : postingExpiryTimestamp) > DateTime.now().millisecondsSinceEpoch;
 
   // Referral state
   String? referralCode;
@@ -152,6 +156,8 @@ class AppState extends ChangeNotifier {
             currentUserPhotoUrl = data['photoUrl'] as String? ?? currentUserPhotoUrl;
             userCoins = data['coins'] as int? ?? 0;
             postingExpiryTimestamp = data['postingExpiryTimestamp'] as int? ?? 0;
+            vehicleExpiryTimestamp = data['vehicleExpiryTimestamp'] as int? ?? 0;
+            adExpiryTimestamp = data['adExpiryTimestamp'] as int? ?? 0;
             referralCode = data['referralCode'] as String?;
             referralCoins = data['referralCoins'] as int? ?? 0;
             redeemedCode = data['redeemedCode'] as String?;
@@ -362,8 +368,8 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // Securely purchase a 1-Month Posting Pass (₹50)
-  Future<bool> purchasePostingPass() async {
+  // Securely purchase a Posting Pass (₹50)
+  Future<bool> purchasePostingPass(String type) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
 
@@ -371,6 +377,9 @@ class AppState extends ChangeNotifier {
     try {
       bool success = false;
       int nextExpiry = 0;
+      final duration = type == 'ad' ? const Duration(days: 7) : const Duration(days: 30);
+      final fieldKey = type == 'ad' ? 'adExpiryTimestamp' : 'vehicleExpiryTimestamp';
+
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         final snapshot = await transaction.get(docRef);
         if (!snapshot.exists) throw Exception("User document not found");
@@ -381,48 +390,72 @@ class AppState extends ChangeNotifier {
           throw Exception("Insufficient coins. Please recharge.");
         }
 
-        // Calculate new expiry (30 days from now)
         final nowMs = DateTime.now().millisecondsSinceEpoch;
-        final currentExpiry = data?['postingExpiryTimestamp'] as int? ?? 0;
+        final currentExpiry = (data?[fieldKey] ?? data?['postingExpiryTimestamp']) as int? ?? 0;
         final baseTime = currentExpiry > nowMs ? currentExpiry : nowMs;
-        nextExpiry = baseTime + const Duration(days: 30).inMilliseconds;
+        nextExpiry = baseTime + duration.inMilliseconds;
 
-        // Deduct 50 coins and update postingExpiryTimestamp
-        transaction.update(docRef, {
+        final updateData = <String, dynamic>{
           'coins': currentCoins - 50,
-          'postingExpiryTimestamp': nextExpiry
-        });
+          fieldKey: nextExpiry,
+        };
+        if (type == 'vehicle') {
+          updateData['postingExpiryTimestamp'] = nextExpiry;
+        }
+
+        transaction.update(docRef, updateData);
         success = true;
       });
 
       if (success) {
+        final desc = type == 'ad'
+            ? 'Purchased 1-Week Ad Posting Pass'
+            : 'Purchased 1-Month Vehicle Posting Pass';
+
         // Log transaction
         await docRef.collection('transactions').add({
           'amount': -50,
-          'description': 'Purchased 1-Month Posting Pass',
+          'description': desc,
           'timestamp': DateTime.now().millisecondsSinceEpoch,
           'status': 'success'
         });
 
-        // Update postingExpiryTimestamp of all existing vehicles of this user
-        final vehiclesQuery = await FirebaseFirestore.instance
-            .collection('vehicles')
-            .where('ownerGmail', isEqualTo: currentGmail)
-            .get();
-        
-        final batch = FirebaseFirestore.instance.batch();
-        for (var doc in vehiclesQuery.docs) {
-          batch.update(doc.reference, {'ownerExpiryTimestamp': nextExpiry});
-        }
-        await batch.commit();
+        if (type == 'vehicle') {
+          // Update all existing vehicles of this user
+          final vehiclesQuery = await FirebaseFirestore.instance
+              .collection('vehicles')
+              .where('ownerGmail', isEqualTo: currentGmail)
+              .get();
+          
+          final batch = FirebaseFirestore.instance.batch();
+          for (var doc in vehiclesQuery.docs) {
+            batch.update(doc.reference, {'ownerExpiryTimestamp': nextExpiry});
+          }
+          await batch.commit();
 
-        // Also update all existing ads of this user
-        final adsQuery = await FirebaseFirestore.instance
-            .collection('ads')
-            .where('ownerGmail', isEqualTo: currentGmail)
-            .get();
-        for (var doc in adsQuery.docs) {
-          await doc.reference.update({'ownerExpiryTimestamp': nextExpiry});
+          // Update all existing shops of this user (since vehicle pass covers shop listings)
+          final shopsQuery = await FirebaseFirestore.instance
+              .collection('shops')
+              .where('ownerGmail', isEqualTo: currentGmail)
+              .get();
+          
+          final shopBatch = FirebaseFirestore.instance.batch();
+          for (var doc in shopsQuery.docs) {
+            shopBatch.update(doc.reference, {'ownerExpiryTimestamp': nextExpiry});
+          }
+          await shopBatch.commit();
+        } else {
+          // Update all existing ads of this user
+          final adsQuery = await FirebaseFirestore.instance
+              .collection('ads')
+              .where('ownerGmail', isEqualTo: currentGmail)
+              .get();
+          
+          final batch = FirebaseFirestore.instance.batch();
+          for (var doc in adsQuery.docs) {
+            batch.update(doc.reference, {'ownerExpiryTimestamp': nextExpiry});
+          }
+          await batch.commit();
         }
 
         return true;
@@ -565,19 +598,16 @@ class AppState extends ChangeNotifier {
     return 12742 * asin(sqrt(a));
   }
 
-  // Filtered vehicles based on location, radius, search, category, and Service ON status
+  // Filtered vehicles based on location, search, category, and Service ON status
   List<Vehicle> get filteredVehicles {
     if (!isLocationOn) return [];
 
-    return _allVehicles.where((vehicle) {
+    final list = _allVehicles.where((vehicle) {
       if (vehicle.ownerExpiryTimestamp != null &&
           vehicle.ownerExpiryTimestamp! < DateTime.now().millisecondsSinceEpoch) {
         return false;
       }
       if (!vehicle.isServiceOn) return false;
-
-      double distance = getDistanceFromUser(vehicle.latitude, vehicle.longitude);
-      if (distance > searchRadiusKm) return false;
 
       if (selectedCategoryFilter != null && vehicle.type != selectedCategoryFilter) {
         return false;
@@ -594,6 +624,15 @@ class AppState extends ChangeNotifier {
 
       return true;
     }).toList();
+
+    // Sort by distance from user (nearest first)
+    list.sort((a, b) {
+      final distA = getDistanceFromUser(a.latitude, a.longitude);
+      final distB = getDistanceFromUser(b.latitude, b.longitude);
+      return distA.compareTo(distB);
+    });
+
+    return list;
   }
 
   // All vehicles registered by the current logged-in user
