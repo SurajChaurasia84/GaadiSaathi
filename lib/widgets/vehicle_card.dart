@@ -278,6 +278,26 @@ class _VehicleCardState extends State<VehicleCard> {
                       );
                     },
                   ),
+                  if (widget.vehicle.address != null && widget.vehicle.address!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 14),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            widget.vehicle.address!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: context.textColor54,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   Divider(color: context.isDarkMode ? const Color(0x11FFFFFF) : const Color(0x0A000000), height: 1),
                   const SizedBox(height: 12),
