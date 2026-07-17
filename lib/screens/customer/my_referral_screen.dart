@@ -397,7 +397,7 @@ class _MyReferralScreenState extends State<MyReferralScreen> {
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
                     child: Text(
-                      'No referrals yet. Share your code to start earning!',
+                      'No referrals yet.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: textColor54, fontSize: 13),
                     ),
