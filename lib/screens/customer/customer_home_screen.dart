@@ -3706,6 +3706,45 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                           }).toList(),
                         ),
                       ],
+                      const SizedBox(height: 8),
+                      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream: FirebaseFirestore.instance
+                            .collection('users')
+                            .where('email', isEqualTo: ownerGmail)
+                            .limit(1)
+                            .snapshots(),
+                        builder: (context, userSnapshot) {
+                          String displayName = ownerGmail.isNotEmpty ? ownerGmail.split('@').first : 'Advertiser';
+                          if (userSnapshot.hasData && userSnapshot.data!.docs.isNotEmpty) {
+                            final userData = userSnapshot.data!.docs.first.data();
+                            displayName = userData['name'] as String? ?? displayName;
+                          }
+                          final initialLetter = displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
+
+                          return Row(
+                            children: [
+                              CachedUserAvatar(
+                                email: ownerGmail,
+                                radius: 10,
+                                fallbackInitial: initialLetter,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  displayName,
+                                  style: TextStyle(
+                                    color: context.textColor70,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                       const Spacer(),
                       const SizedBox(height: 8),
                       Row(
