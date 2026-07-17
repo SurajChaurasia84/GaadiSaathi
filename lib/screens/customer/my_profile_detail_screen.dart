@@ -451,6 +451,8 @@ class _MyProfileDetailScreenState extends State<MyProfileDetailScreen> with Sing
       return _buildEmptyTabState(Icons.build_circle_outlined, 'No Service Centers', 'Service centers you register will show up here.');
     }
 
+    final appState = Provider.of<AppState>(context, listen: false);
+
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: docs.length,
@@ -459,20 +461,32 @@ class _MyProfileDetailScreenState extends State<MyProfileDetailScreen> with Sing
         final name = data['serviceCenterName'] as String? ?? 'Service Center';
         final address = data['address'] as String? ?? 'Address';
         final phone = data['phoneNumber'] as String? ?? '';
+        final photoUrl = data['photoUrl'] as String?;
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           color: Theme.of(context).cardColor,
           elevation: 0,
-          child: ListTile(
-            leading: const CircleAvatar(
-              backgroundColor: Color(0x1A536DFE),
-              child: Icon(Icons.build_rounded, color: Color(0xFF536DFE), size: 20),
+          child: InkWell(
+            onTap: () => _showServiceCenterDetailsBottomSheet(context, appState, data),
+            borderRadius: BorderRadius.circular(12),
+            child: ListTile(
+              leading: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  color: const Color(0x1A536DFE),
+                  child: photoUrl != null && photoUrl.isNotEmpty
+                      ? Image.network(photoUrl, fit: BoxFit.cover)
+                      : const Icon(Icons.build_rounded, color: Color(0xFF536DFE), size: 20),
+                ),
+              ),
+              title: Text(name, style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 14)),
+              subtitle: Text(address, style: TextStyle(color: context.textColor54, fontSize: 12)),
+              trailing: phone.isNotEmpty ? Icon(Icons.phone_rounded, color: context.textColor30, size: 18) : null,
             ),
-            title: Text(name, style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 14)),
-            subtitle: Text(address, style: TextStyle(color: context.textColor54, fontSize: 12)),
-            trailing: phone.isNotEmpty ? Icon(Icons.phone_rounded, color: context.textColor30, size: 18) : null,
           ),
         );
       },
@@ -637,4 +651,348 @@ class _MyProfileDetailScreenState extends State<MyProfileDetailScreen> with Sing
       },
     );
   }
+
+  void _openMap(double lat, double lon, String address) async {
+    Uri uri;
+    if (lat != 0.0 || lon != 0.0) {
+      uri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$lat,$lon");
+    } else {
+      uri = Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}");
+    }
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
+  }
+
+  void _showServiceCenterDetailsBottomSheet(BuildContext context, AppState appState, Map<String, dynamic> data) {
+    final serviceCenterName = data['serviceCenterName'] as String? ?? 'Service Center Name';
+    final address = data['address'] as String? ?? 'Address';
+    final phone = data['phoneNumber'] as String? ?? '';
+    final ownerGmail = data['ownerGmail'] as String? ?? '';
+    final photoUrl = data['photoUrl'] as String? ?? '';
+    final lat = data['latitude'] as double? ?? 0.0;
+    final lon = data['longitude'] as double? ?? 0.0;
+    final distance = appState.getDistanceFromUser(lat, lon);
+    final types = data['types'] as List? ?? [];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Top Drag Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Service Center Image (or default icon)
+              if (photoUrl.isNotEmpty) ...[
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FullScreenImageViewer(imageUrl: photoUrl),
+                      ),
+                    );
+                  },
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 240),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        photoUrl,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // Name & Distance
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      serviceCenterName,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF536DFE).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${distance.toStringAsFixed(1)} Km',
+                      style: const TextStyle(
+                        color: Color(0xFF536DFE),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Serviced Vehicle Types
+              if (types.isNotEmpty) ...[
+                const Text(
+                  'TYPES SERVICED',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: types.map((t) {
+                    IconData tIcon = Icons.build_rounded;
+                    if (t == 'Bike') {
+                      tIcon = Icons.motorcycle_rounded;
+                    } else if (t == 'Rickshaw') {
+                      tIcon = Icons.electric_rickshaw_rounded;
+                    } else if (t == 'Car') {
+                      tIcon = Icons.directions_car_filled_rounded;
+                    } else if (t == 'Truck') {
+                      tIcon = Icons.local_shipping_rounded;
+                    }
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF536DFE).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(tIcon, size: 14, color: const Color(0xFF536DFE)),
+                          const SizedBox(width: 6),
+                          Text(
+                            t.toString(),
+                            style: const TextStyle(
+                              color: Color(0xFF536DFE),
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // Address Info
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Address',
+                          style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          address,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.map_rounded, color: Color(0xFF536DFE), size: 20),
+                    onPressed: () => _openMap(lat, lon, address),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Action Buttons (Call, Chat, Delete if owner)
+              Row(
+                children: [
+                  if (phone.isNotEmpty) ...[
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final Uri launchUri = Uri(
+                            scheme: 'tel',
+                            path: phone,
+                          );
+                          await launchUrl(launchUri);
+                        },
+                        icon: const Icon(Icons.phone_rounded, size: 18),
+                        label: const Text('Call'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  if (ownerGmail != appState.currentGmail) ...[
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context); // Close bottom sheet
+                          final dummyVehicle = Vehicle(
+                            id: data['id'] as String? ?? 'service_center',
+                            ownerName: serviceCenterName,
+                            ownerGmail: ownerGmail,
+                            type: VehicleType.car,
+                            model: 'Service Center Profile',
+                            insidePhotoUrl: '',
+                            outsidePhotoUrl: '',
+                            ratePerKm: 0.0,
+                            isServiceOn: true,
+                            latitude: lat,
+                            longitude: lon,
+                            phoneNumber: phone,
+                            address: address,
+                          );
+                          final thread = appState.getOrCreateThread(dummyVehicle);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(threadId: thread.threadId),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                        label: const Text('Chat'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF536DFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    // Delete listing button for owner
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          Navigator.pop(context); // Close bottom sheet
+                          final wantDelete = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Delete Service Center'),
+                              content: const Text('Are you sure you want to delete this service center listing?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (wantDelete == true) {
+                            await FirebaseFirestore.instance
+                                .collection('service_centers')
+                                .doc(data['id'] as String)
+                                .delete();
+                          }
+                        },
+                        icon: const Icon(Icons.delete_forever_rounded, size: 18),
+                        label: const Text('Delete Listing'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
+
+class FullScreenImageViewer extends StatelessWidget {
+  final String imageUrl;
+
+  const FullScreenImageViewer({super.key, required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          panEnabled: true,
+          boundaryMargin: const EdgeInsets.all(20),
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            width: double.infinity,
+            height: double.infinity,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
