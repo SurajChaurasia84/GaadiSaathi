@@ -23,7 +23,7 @@ class VehicleHistoryScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Vehicle History',
+          'Service History',
           style: TextStyle(
             color: context.textColor,
             fontWeight: FontWeight.bold,
