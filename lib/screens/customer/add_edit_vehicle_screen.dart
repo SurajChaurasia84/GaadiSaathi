@@ -613,7 +613,7 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
   }
 
   Future<bool> _ensureActivePostingPass(BuildContext context, AppState appState) async {
-    if (appState.hasActivePostingPass) return true;
+    if (appState.hasActiveVehiclePass) return true;
 
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDarkMode ? Colors.white : Colors.black;
@@ -624,11 +624,11 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
         return AlertDialog(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           title: Text(
-            'Posting Pass Required',
+            'Vehicle Posting Pass Required',
             style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
           ),
           content: Text(
-            'To post ads or register vehicles, you need an active 1-Month Posting Pass which costs ₹50. Would you like to buy it now?',
+            'To register vehicles, you need an active 1-Month Vehicle Posting Pass which costs ₹50. Would you like to buy it now?',
             style: TextStyle(color: isDarkMode ? Colors.white70 : Colors.black87),
           ),
           actions: [
@@ -655,7 +655,7 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
       if (!context.mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Insufficient Coins! A 1-Month Posting Pass costs ₹50.'),
+          content: const Text('Insufficient Coins! A 1-Month Vehicle Posting Pass costs ₹50.'),
           backgroundColor: Colors.orangeAccent,
           action: SnackBarAction(
             label: 'Recharge',
@@ -682,14 +682,14 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
       ),
     );
 
-    final success = await appState.purchasePostingPass();
+    final success = await appState.purchasePostingPass('vehicle');
     if (!context.mounted) return false;
     Navigator.pop(context); // Pop loading indicator
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('1-Month Posting Pass purchased successfully!'),
+          content: Text('1-Month Vehicle Posting Pass purchased successfully!'),
           backgroundColor: Color(0xFF10B981),
         ),
       );
