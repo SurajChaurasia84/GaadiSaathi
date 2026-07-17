@@ -468,7 +468,38 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                         _buildChatAction(context, appState),
                         const SizedBox(width: 8),
                       ]
-                    : null,
+                    : _currentIndex == 2
+                        ? [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: TextButton.icon(
+                                onPressed: () {
+                                  final code = appState.referralCode ?? '';
+                                  final text = "Download Gaadi Saathi app! Use my referral code: $code to earn free coins. Search and rent vehicles, shops, drivers, and service centers near you!";
+                                  // ignore: deprecated_member_use
+                                  Share.share(text);
+                                },
+                                icon: const Icon(Icons.share_rounded, size: 16, color: Color(0xFF536DFE)),
+                                label: const Text(
+                                  'Refer App',
+                                  style: TextStyle(
+                                    color: Color(0xFF536DFE),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: const BorderSide(color: Color(0xFF536DFE), width: 1),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                          ]
+                        : null,
               ),
         body: IndexedStack(
           index: _currentIndex,
