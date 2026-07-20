@@ -1018,27 +1018,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                   return;
                 }
 
-                // Check coin balance (10 coins required for shop listing)
-                if (appState.userCoins < 10) {
-                  messenger.clearSnackBars();
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: const Text('Insufficient Balance! Listing a vehicle for sale costs ₹10.'),
-                      backgroundColor: Colors.orangeAccent,
-                      action: SnackBarAction(
-                        label: 'Recharge',
-                        textColor: Colors.white,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const WalletScreen()),
-                          );
-                        },
-                      ),
-                    ),
-                  );
-                  return;
-                }
+                // Check complete profile first
+                final isProfileReady = await _ensureCompleteProfile(context, appState);
+                if (!isProfileReady || !mounted) return;
+
+                // Check active posting pass (1-Month Vehicle/Listing Pass)
+                final hasPass = await _ensureActivePostingPass(context, appState, 'vehicle');
+                if (!hasPass) return;
 
                 messenger.clearSnackBars();
                 messenger.showSnackBar(
@@ -1075,18 +1061,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     return;
                   }
 
-                  // Deduct 10 coins
-                  final success = await appState.deductCoins(10, "Post: Listed Vehicle for Sale (${_shopNameController.text.trim()})");
-                  if (!success) {
-                    messenger.clearSnackBars();
-                    messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text('Failed to deduct coins. Please try again.'),
-                        backgroundColor: Colors.redAccent,
-                      ),
-                    );
-                    return;
-                  }
+
 
                   final docId = 'shop_${DateTime.now().millisecondsSinceEpoch}';
                   await FirebaseFirestore.instance.collection('shops').doc(docId).set({
@@ -1403,6 +1378,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                   return;
                 }
 
+                // Check complete profile first
+                final isProfileReady = await _ensureCompleteProfile(context, appState);
+                if (!isProfileReady || !mounted) return;
+
+                // Check active posting pass (1-Month Vehicle/Listing Pass)
+                final hasPass = await _ensureActivePostingPass(context, appState, 'vehicle');
+                if (!hasPass) return;
+
                 messenger.clearSnackBars();
                 messenger.showSnackBar(
                   const SnackBar(
@@ -1651,6 +1634,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                   );
                   return;
                 }
+
+                // Check complete profile first
+                final isProfileReady = await _ensureCompleteProfile(context, appState);
+                if (!isProfileReady || !mounted) return;
+
+                // Check active posting pass (1-Month Vehicle/Listing Pass)
+                final hasPass = await _ensureActivePostingPass(context, appState, 'vehicle');
+                if (!hasPass) return;
 
                 messenger.clearSnackBars();
                 messenger.showSnackBar(
@@ -1917,6 +1908,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                   );
                   return;
                 }
+
+                // Check complete profile first
+                final isProfileReady = await _ensureCompleteProfile(context, appState);
+                if (!isProfileReady || !mounted) return;
 
                 final hasPass = await _ensureActivePostingPass(context, appState, 'ad');
                 if (!hasPass) return;
@@ -2625,6 +2620,65 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
             ),
           ),
           const SizedBox(height: 10),
+
+          // Incomplete Profile Alert Card on Profile tab
+          if (appState.isProfileIncomplete) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.amber.shade700, width: 1.5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800, size: 24),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Incomplete Profile',
+                          style: TextStyle(
+                            color: context.textColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Please fill missing details (${appState.missingProfileFields.join(', ')}) to complete your profile.',
+                    style: TextStyle(color: context.textColor54, fontSize: 12),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF536DFE),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      icon: const Icon(Icons.edit_rounded, size: 16),
+                      label: const Text('Complete Profile Now', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
 
 
@@ -4321,6 +4375,63 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     }
   }
 
+  Future<bool> _ensureCompleteProfile(BuildContext context, AppState appState) async {
+    if (!appState.isProfileIncomplete) return true;
+
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final missing = appState.missingProfileFields.join(', ');
+
+    final completeNow = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.account_circle_outlined, color: Colors.orangeAccent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Complete Your Profile',
+                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Your profile is missing key details ($missing). Please complete your profile so buyers & renters can reach you.',
+            style: TextStyle(color: isDarkMode ? Colors.white70 : Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Later', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF536DFE),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Complete Profile', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (completeNow == true && context.mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+      );
+    }
+    return false;
+  }
+
   Future<bool> _ensureActivePostingPass(BuildContext context, AppState appState, String type) async {
     final hasPass = type == 'ad' ? appState.hasActiveAdPass : appState.hasActiveVehiclePass;
     if (hasPass) return true;
@@ -4328,10 +4439,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDarkMode ? Colors.white : Colors.black;
 
-    final title = type == 'ad' ? 'Ad Posting Pass Required' : 'Vehicle Posting Pass Required';
+    final title = type == 'ad' ? 'Ad Posting Pass Required' : 'Buy & Sell Pass Required';
     final desc = type == 'ad'
-        ? 'To post advertisements, you need an active 1-Week Ad Posting Pass which costs ₹50. Would you like to buy it now?'
-        : 'To register vehicles or shops, you need an active 1-Month Vehicle Posting Pass which costs ₹50. Would you like to buy it now?';
+        ? 'To post advertisements, you need an active 1-Week Ad Posting Pass which costs ₹50. Advertisements will remain active for 7 days. Would you like to buy it now?'
+        : 'To post a vehicle for sale (Buy & Sell), you need an active 1-Month Buy & Sell Pass which costs ₹50. Your post & profile will remain active for 1 month (30 days). Would you like to buy it now?';
 
     final wantToBuy = await showDialog<bool>(
       context: context,
@@ -4372,7 +4483,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
         SnackBar(
           content: Text(type == 'ad'
               ? 'Insufficient Coins! An active 1-Week Ad Posting Pass costs ₹50.'
-              : 'Insufficient Coins! An active 1-Month Vehicle Posting Pass costs ₹50.'),
+              : 'Insufficient Coins! An active 1-Month Buy & Sell Pass costs ₹50.'),
           backgroundColor: Colors.orangeAccent,
           action: SnackBarAction(
             label: 'Recharge',
@@ -4408,7 +4519,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
         SnackBar(
           content: Text(type == 'ad'
               ? '1-Week Ad Posting Pass purchased successfully!'
-              : '1-Month Vehicle Posting Pass purchased successfully!'),
+              : '1-Month Buy & Sell Pass purchased successfully!'),
           backgroundColor: const Color(0xFF10B981),
         ),
       );
@@ -4440,8 +4551,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
           .substring(0, 10); // YYYY-MM-DD
     }
 
-    final title = type == 'ad' ? '1-Week Ad Posting Pass' : '1-Month Vehicle Posting Pass';
-    final priceLabel = type == 'ad' ? '₹50/Week' : '₹50/Month';
+    final title = type == 'ad' ? '1-Week Ad Posting Pass' : '1-Month Buy & Sell Pass';
+    final priceLabel = type == 'ad' ? '₹50/Week (7 Days)' : '₹50/Month (30 Days)';
 
     return Container(
       padding: const EdgeInsets.all(18),
