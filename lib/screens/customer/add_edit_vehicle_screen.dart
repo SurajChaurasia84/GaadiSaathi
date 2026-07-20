@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../models/vehicle.dart';
 import '../../providers/app_state.dart';
-import 'wallet_screen.dart';
 
 /// A standalone screen for both **adding** a new vehicle and **editing**
 /// an existing one.
@@ -146,11 +145,7 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
       }
     }
 
-    if (!_isEditing) {
-      if (!mounted) return;
-      final hasPass = await _ensureActivePostingPass(context, appState);
-      if (!hasPass) return;
-    }
+
 
     messenger.clearSnackBars();
 
@@ -612,96 +607,5 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
     );
   }
 
-  Future<bool> _ensureActivePostingPass(BuildContext context, AppState appState) async {
-    if (appState.hasActiveVehiclePass) return true;
 
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDarkMode ? Colors.white : Colors.black;
-
-    final wantToBuy = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          title: Text(
-            'Vehicle Posting Pass Required',
-            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            'To register vehicles, you need an active 1-Month Vehicle Posting Pass which costs ₹50. Would you like to buy it now?',
-            style: TextStyle(color: isDarkMode ? Colors.white70 : Colors.black87),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF536DFE),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Buy Pass (₹50)'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (wantToBuy != true) return false;
-
-    if (appState.userCoins < 50) {
-      if (!context.mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Insufficient Coins! A 1-Month Vehicle Posting Pass costs ₹50.'),
-          backgroundColor: Colors.orangeAccent,
-          action: SnackBarAction(
-            label: 'Recharge',
-            textColor: Colors.white,
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const WalletScreen()),
-              );
-            },
-          ),
-        ),
-      );
-      return false;
-    }
-
-    // Show loading indicator
-    if (!context.mounted) return false;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(color: Color(0xFF536DFE)),
-      ),
-    );
-
-    final success = await appState.purchasePostingPass('vehicle');
-    if (!context.mounted) return false;
-    Navigator.pop(context); // Pop loading indicator
-
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('1-Month Vehicle Posting Pass purchased successfully!'),
-          backgroundColor: Color(0xFF10B981),
-        ),
-      );
-      return true;
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to purchase posting pass. Please try again.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-      return false;
-    }
-  }
 }
