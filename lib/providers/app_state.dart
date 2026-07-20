@@ -278,15 +278,44 @@ class AppState extends ChangeNotifier {
     });
   }
 
+  // Helper getters for profile completeness
+  bool get isProfileIncomplete {
+    final phone = currentUserPhone?.trim() ?? '';
+    final address = currentUserAddress?.trim() ?? '';
+    final name = currentUserName?.trim() ?? '';
+    final photo = currentUserPhotoUrl?.trim() ?? '';
+    return phone.isEmpty || phone == 'No phone added' ||
+           address.isEmpty || address == 'No address added' ||
+           name.isEmpty || photo.isEmpty;
+  }
+
+  List<String> get missingProfileFields {
+    final list = <String>[];
+    final name = currentUserName?.trim() ?? '';
+    final photo = currentUserPhotoUrl?.trim() ?? '';
+    final phone = currentUserPhone?.trim() ?? '';
+    final address = currentUserAddress?.trim() ?? '';
+
+    if (name.isEmpty) list.add('Name');
+    if (photo.isEmpty) list.add('Profile Photo');
+    if (phone.isEmpty || phone == 'No phone added') list.add('Phone Number');
+    if (address.isEmpty || address == 'No address added') list.add('Location Address');
+    return list;
+  }
+
   // Update user profile in local cache and Firestore
   Future<void> updateProfile({
     required String name,
     required String phone,
     required String address,
+    String? photoUrl,
   }) async {
     currentUserName = name;
     currentUserPhone = phone;
     currentUserAddress = address;
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      currentUserPhotoUrl = photoUrl;
+    }
     notifyListeners();
 
     try {
@@ -294,17 +323,27 @@ class AppState extends ChangeNotifier {
       await prefs.setString('user_name', name);
       await prefs.setString('user_phone', phone);
       await prefs.setString('user_address', address);
+      if (photoUrl != null && photoUrl.isNotEmpty) {
+        await prefs.setString('user_photoUrl', photoUrl);
+      }
     } catch (_) {}
 
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        final updateData = <String, dynamic>{
           'name': name,
           'phone': phone,
           'address': address,
           'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        };
+        if (photoUrl != null && photoUrl.isNotEmpty) {
+          updateData['photoUrl'] = photoUrl;
+        }
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
+          updateData,
+          SetOptions(merge: true),
+        );
       }
     } catch (_) {}
   }
@@ -1211,6 +1250,24 @@ class AppState extends ChangeNotifier {
         .delete());
 
     await Future.wait(futures);
+    notifyListeners();
+  }
+
+  // Deletes multiple chat threads from Firestore and cancels active subscriptions
+  Future<void> deleteChatThreads(List<String> threadIds) async {
+    final batch = FirebaseFirestore.instance.batch();
+    for (var threadId in threadIds) {
+      final docRef = FirebaseFirestore.instance.collection('threads').doc(threadId);
+      batch.delete(docRef);
+
+      // Clean up internal state & subscriptions
+      if (_messageSubscriptions.containsKey(threadId)) {
+        _messageSubscriptions[threadId]?.cancel();
+        _messageSubscriptions.remove(threadId);
+      }
+      chatThreads.removeWhere((t) => t.threadId == threadId);
+    }
+    await batch.commit();
     notifyListeners();
   }
 }
