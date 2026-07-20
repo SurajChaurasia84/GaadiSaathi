@@ -202,6 +202,44 @@ class _MyProfileDetailScreenState extends State<MyProfileDetailScreen> with Sing
                                       ],
                                     ),
                                     const SizedBox(height: 16),
+                                    // Incomplete Profile Banner for current user
+                                    if (isMe && appState.isProfileIncomplete) ...[
+                                      Container(
+                                        margin: const EdgeInsets.only(bottom: 12),
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: Colors.amber.shade700, width: 1.5),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800, size: 24),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Profile Incomplete!',
+                                                    style: TextStyle(
+                                                      color: context.textColor,
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    'Fill missing details: ${appState.missingProfileFields.join(', ')}',
+                                                    style: TextStyle(color: context.textColor54, fontSize: 11),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                     // Edit Profile Button or Call/Chat buttons for other users
                                     if (isMe)
                                       SizedBox(
