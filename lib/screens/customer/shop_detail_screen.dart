@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/app_state.dart';
 import '../../models/vehicle.dart';
 import '../chat_screen.dart';
@@ -325,21 +326,12 @@ class ShopDetailScreen extends StatelessWidget {
                 top: false,
                 child: Row(
                   children: [
-                    // Call Button
-                    if (phone.isNotEmpty) ...[
+                    if (appState.currentGmail != null && appState.currentGmail!.isNotEmpty && ownerGmail == appState.currentGmail) ...[
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () async {
-                            final Uri launchUri = Uri(
-                              scheme: 'tel',
-                              path: phone,
-                            );
-                            if (await canLaunchUrl(launchUri)) {
-                              await launchUrl(launchUri);
-                            }
-                          },
+                          onPressed: () => _showEditShopBottomSheet(context, appState, data),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981),
+                            backgroundColor: const Color(0xFF536DFE),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
@@ -347,9 +339,9 @@ class ShopDetailScreen extends StatelessWidget {
                             ),
                             elevation: 0,
                           ),
-                          icon: const Icon(Icons.phone_rounded, size: 20),
+                          icon: const Icon(Icons.edit_rounded, size: 20),
                           label: const Text(
-                            'Call Now',
+                            'Edit Listing',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -357,54 +349,86 @@ class ShopDetailScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                    ],
-                    // Chat Button
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          final dummyVehicle = Vehicle(
-                            id: data['id'] as String? ?? 'shop',
-                            ownerName: ownerName,
-                            ownerGmail: ownerGmail,
-                            type: VehicleType.car,
-                            model: shopName,
-                            insidePhotoUrl: '',
-                            outsidePhotoUrl: '',
-                            ratePerKm: 0.0,
-                            isServiceOn: true,
-                            latitude: lat,
-                            longitude: lon,
-                            phoneNumber: phone,
-                            address: address,
-                          );
-                          final thread = appState.getOrCreateThread(dummyVehicle);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ChatScreen(threadId: thread.threadId),
+                    ] else ...[
+                      if (phone.isNotEmpty) ...[
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              final Uri launchUri = Uri(
+                                scheme: 'tel',
+                                path: phone,
+                              );
+                              if (await canLaunchUrl(launchUri)) {
+                                await launchUrl(launchUri);
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              elevation: 0,
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF536DFE),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            icon: const Icon(Icons.phone_rounded, size: 20),
+                            label: const Text(
+                              'Call Now',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                          elevation: 0,
                         ),
-                        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
-                        label: const Text(
-                          'Chat',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            final dummyVehicle = Vehicle(
+                              id: data['id'] as String? ?? 'shop',
+                              ownerName: ownerName,
+                              ownerGmail: ownerGmail,
+                              type: VehicleType.car,
+                              model: shopName,
+                              insidePhotoUrl: '',
+                              outsidePhotoUrl: '',
+                              ratePerKm: 0.0,
+                              isServiceOn: true,
+                              latitude: lat,
+                              longitude: lon,
+                              phoneNumber: phone,
+                              address: address,
+                            );
+                            final thread = appState.getOrCreateThread(dummyVehicle);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ChatScreen(threadId: thread.threadId),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF536DFE),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                          ),
+                          icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
+                          label: const Text(
+                            'Chat',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -516,6 +540,231 @@ class ShopDetailScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+  void _showEditShopBottomSheet(BuildContext context, AppState appState, Map<String, dynamic> currentData) {
+    final formKey = GlobalKey<FormState>();
+    final shopNameController = TextEditingController(text: currentData['shopName'] as String? ?? '');
+    final ownerNameController = TextEditingController(text: currentData['ownerName'] as String? ?? '');
+    final phoneController = TextEditingController(text: currentData['phoneNumber'] as String? ?? '');
+    final priceController = TextEditingController(text: currentData['price']?.toString() ?? '');
+    final addressController = TextEditingController(text: currentData['address'] as String? ?? '');
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final textColor = isDark ? Colors.white : Colors.black;
+            final textColor30 = isDark ? Colors.white30 : Colors.black38;
+
+            InputDecoration inputDecoration(String label, IconData icon) => InputDecoration(
+              labelText: label,
+              labelStyle: TextStyle(color: textColor30),
+              prefixIcon: Icon(icon, color: textColor30, size: 18),
+              filled: true,
+              fillColor: Theme.of(context).cardColor,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: isDark ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                  width: 1.5,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: Color(0xFF536DFE)),
+              ),
+            );
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24,
+              ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: textColor30,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Edit Shop Listing',
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: shopNameController,
+                        textCapitalization: TextCapitalization.words,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: inputDecoration('Shop Name', Icons.storefront_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter shop name' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: ownerNameController,
+                        textCapitalization: TextCapitalization.words,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: inputDecoration('Owner Name', Icons.person_outline_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter owner name' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: inputDecoration('Phone Number', Icons.phone_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter phone number' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: priceController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: inputDecoration('Price (₹)', Icons.currency_rupee_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter price' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: addressController,
+                        maxLines: 1,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          labelText: 'Location / Address',
+                          labelStyle: TextStyle(color: textColor30),
+                          prefixIcon: Icon(Icons.location_on_rounded, color: textColor30, size: 18),
+                          suffixIcon: TextButton.icon(
+                            style: TextButton.styleFrom(foregroundColor: const Color(0xFF536DFE)),
+                            icon: const Icon(Icons.my_location_rounded, size: 16),
+                            label: const Text('GPS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              messenger.clearSnackBars();
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      ),
+                                      SizedBox(width: 12),
+                                      Text('Fetching location...'),
+                                    ],
+                                  ),
+                                  duration: Duration(days: 1),
+                                ),
+                              );
+                              await appState.fetchCurrentLocation();
+                              messenger.clearSnackBars();
+                              addressController.text = appState.currentAddress;
+                            },
+                          ),
+                          filled: true,
+                          fillColor: Theme.of(context).cardColor,
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: isDark ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                              width: 1.5,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(color: Color(0xFF536DFE)),
+                          ),
+                        ),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter address' : null,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                if (!formKey.currentState!.validate()) return;
+
+                                setModalState(() => isSaving = true);
+                                final messenger = ScaffoldMessenger.of(context);
+                                final nav = Navigator.of(context);
+
+                                try {
+                                  await FirebaseFirestore.instance
+                                      .collection('shops')
+                                      .doc(currentData['id'] as String)
+                                      .update({
+                                        'shopName': shopNameController.text.trim(),
+                                        'ownerName': ownerNameController.text.trim(),
+                                        'phoneNumber': phoneController.text.trim(),
+                                        'price': double.tryParse(priceController.text.trim()) ?? 0.0,
+                                        'address': addressController.text.trim(),
+                                      });
+
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Shop listing updated successfully!'),
+                                      backgroundColor: Color(0xFF10B981),
+                                    ),
+                                  );
+                                  nav.pop(); // Close edit sheet
+                                  nav.pop(); // Close details view
+                                } catch (e) {
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('Error updating: $e')),
+                                  );
+                                } finally {
+                                  setModalState(() => isSaving = false);
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF536DFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
