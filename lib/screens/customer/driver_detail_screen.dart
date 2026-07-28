@@ -54,40 +54,7 @@ class DriverDetailScreen extends StatelessWidget {
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
-                actions: [
-                  if (driverGmail == appState.currentGmail)
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: const BoxDecoration(
-                        color: Colors.black38,
-                        shape: BoxShape.circle,
-                      ),
-                      child: PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
-                        color: Theme.of(context).cardColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        onSelected: (value) {
-                          if (value == 'delete') {
-                            _showDeleteConfirmationDialog(context, data['id'] as String);
-                          }
-                        },
-                        itemBuilder: (BuildContext context) => [
-                          PopupMenuItem<String>(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                const Icon(Icons.delete_rounded, color: Colors.redAccent, size: 18),
-                                const SizedBox(width: 8),
-                                const Text('Delete', style: TextStyle(color: Colors.redAccent, fontSize: 14)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
+
                 flexibleSpace: FlexibleSpaceBar(
                   stretchModes: const [
                     StretchMode.zoomBackground,
@@ -387,33 +354,51 @@ class DriverDetailScreen extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  if (phone.isNotEmpty)
+                  if (appState.currentGmail != null && appState.currentGmail!.isNotEmpty && driverGmail == appState.currentGmail) ...[
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () async {
-                          final Uri launchUri = Uri(
-                            scheme: 'tel',
-                            path: phone,
-                          );
-                          await launchUrl(launchUri);
-                        },
+                        onPressed: () => _showEditDriverBottomSheet(context, appState, data),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
+                          backgroundColor: const Color(0xFF536DFE),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           elevation: 0,
                         ),
-                        icon: const Icon(Icons.phone_rounded),
+                        icon: const Icon(Icons.edit_rounded),
                         label: const Text(
-                          'Call Driver',
+                          'Edit Listing',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                       ),
                     ),
-                  if (phone.isNotEmpty && driverGmail != appState.currentGmail)
-                    const SizedBox(width: 12),
-                  if (driverGmail != appState.currentGmail)
+                  ] else ...[
+                    if (phone.isNotEmpty) ...[
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final Uri launchUri = Uri(
+                              scheme: 'tel',
+                              path: phone,
+                            );
+                            await launchUrl(launchUri);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            elevation: 0,
+                          ),
+                          icon: const Icon(Icons.phone_rounded),
+                          label: const Text(
+                            'Call Driver',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
@@ -454,6 +439,7 @@ class DriverDetailScreen extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -489,74 +475,222 @@ class DriverDetailScreen extends StatelessWidget {
     );
   }
 
-  void _showDeleteConfirmationDialog(BuildContext context, String docId) {
-    showDialog(
+
+  void _showEditDriverBottomSheet(BuildContext context, AppState appState, Map<String, dynamic> currentData) {
+    final formKey = GlobalKey<FormState>();
+    final driverNameController = TextEditingController(text: currentData['driverName'] as String? ?? '');
+    final phoneController = TextEditingController(text: currentData['phoneNumber'] as String? ?? '');
+    final experienceController = TextEditingController(text: currentData['experience']?.toString() ?? '');
+    final addressController = TextEditingController(text: currentData['address'] as String? ?? '');
+    bool isSaving = false;
+
+    showModalBottomSheet(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          backgroundColor: Theme.of(context).cardColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
-              SizedBox(width: 8),
-              Text(
-                'Delete Post?',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          content: const Text(
-            'Are you sure you want to delete this driver listing? This action cannot be undone.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(dialogContext); // Close dialog
-                Navigator.pop(context); // Go back to Explore screen
-                try {
-                  await FirebaseFirestore.instance
-                      .collection('drivers')
-                      .doc(docId)
-                      .delete();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Driver listing deleted successfully.'),
-                        backgroundColor: Color(0xFF10B981),
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to delete listing: $e'),
-                        backgroundColor: Colors.redAccent,
-                      ),
-                    );
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final textColor = isDark ? Colors.white : Colors.black;
+            final textColor30 = isDark ? Colors.white30 : Colors.black38;
+
+            InputDecoration inputDecoration(String label, IconData icon) => InputDecoration(
+              labelText: label,
+              labelStyle: TextStyle(color: textColor30),
+              prefixIcon: Icon(icon, color: textColor30, size: 18),
+              filled: true,
+              fillColor: Theme.of(context).cardColor,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: isDark ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                  width: 1.5,
                 ),
               ),
-              child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: Color(0xFF536DFE)),
+              ),
+            );
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24,
+              ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: textColor30,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Edit Driver Profile',
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: driverNameController,
+                        textCapitalization: TextCapitalization.words,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: inputDecoration('Driver Name', Icons.person_outline_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter driver name' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: inputDecoration('Phone Number', Icons.phone_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter phone number' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: experienceController,
+                        keyboardType: TextInputType.number,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: inputDecoration('Experience (Years)', Icons.workspace_premium_rounded),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) return 'Enter experience';
+                          if (int.tryParse(value) == null) return 'Enter a valid number';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: addressController,
+                        maxLines: 1,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          labelText: 'Address / Location',
+                          labelStyle: TextStyle(color: textColor30),
+                          prefixIcon: Icon(Icons.location_on_rounded, color: textColor30, size: 18),
+                          suffixIcon: TextButton.icon(
+                            style: TextButton.styleFrom(foregroundColor: const Color(0xFF536DFE)),
+                            icon: const Icon(Icons.my_location_rounded, size: 16),
+                            label: const Text('GPS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              messenger.clearSnackBars();
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      ),
+                                      SizedBox(width: 12),
+                                      Text('Fetching location...'),
+                                    ],
+                                  ),
+                                  duration: Duration(days: 1),
+                                ),
+                              );
+                              await appState.fetchCurrentLocation();
+                              messenger.clearSnackBars();
+                              addressController.text = appState.currentAddress;
+                            },
+                          ),
+                          filled: true,
+                          fillColor: Theme.of(context).cardColor,
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: isDark ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                              width: 1.5,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(color: Color(0xFF536DFE)),
+                          ),
+                        ),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter address' : null,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                if (!formKey.currentState!.validate()) return;
+
+                                setModalState(() => isSaving = true);
+                                final messenger = ScaffoldMessenger.of(context);
+                                final nav = Navigator.of(context);
+
+                                try {
+                                  await FirebaseFirestore.instance
+                                      .collection('drivers')
+                                      .doc(currentData['id'] as String)
+                                      .update({
+                                        'driverName': driverNameController.text.trim(),
+                                        'phoneNumber': phoneController.text.trim(),
+                                        'experience': int.tryParse(experienceController.text.trim()) ?? 0,
+                                        'address': addressController.text.trim(),
+                                      });
+
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Driver profile updated successfully!'),
+                                      backgroundColor: Color(0xFF10B981),
+                                    ),
+                                  );
+                                  nav.pop(); // Close edit sheet
+                                  nav.pop(); // Close details view
+                                } catch (e) {
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('Error updating: $e')),
+                                  );
+                                } finally {
+                                  setModalState(() => isSaving = false);
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF536DFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
     );
