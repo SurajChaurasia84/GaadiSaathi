@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -924,10 +925,630 @@ class VehicleHistoryScreen extends StatelessWidget {
   }
 
   // ── Bottom Sheets for Details ─────────────────────────────────────────────
+  void _showEditServiceCenterBottomSheet(BuildContext context, AppState appState, Map<String, dynamic> data) {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController(text: data['serviceCenterName'] as String? ?? '');
+    final phoneController = TextEditingController(text: data['phoneNumber'] as String? ?? '');
+    final addressController = TextEditingController(text: data['address'] as String? ?? '');
+    List<String> selectedTypes = List<String>.from(data['types'] ?? []);
+    String? localPhotoPath;
+    final existingPhotoUrl = data['photoUrl'] as String? ?? '';
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final textColor = isDark ? Colors.white : Colors.black;
+            final textColor30 = isDark ? Colors.white30 : Colors.black38;
+            final textColor54 = isDark ? Colors.white54 : Colors.black54;
+            final textColor70 = isDark ? Colors.white70 : Colors.black87;
+
+            InputDecoration inputDecoration(String label, IconData icon) => InputDecoration(
+              labelText: label,
+              labelStyle: TextStyle(color: textColor30),
+              prefixIcon: Icon(icon, color: textColor30, size: 18),
+              filled: true,
+              fillColor: Theme.of(context).cardColor,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: isDark ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                  width: 1.5,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: Color(0xFF536DFE)),
+              ),
+            );
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24,
+              ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: textColor30,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Edit Service Center',
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: nameController,
+                        textCapitalization: TextCapitalization.words,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: inputDecoration('Service Center Name', Icons.build_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter name' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: inputDecoration('Phone Number', Icons.phone_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter phone number' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: addressController,
+                        maxLines: 1,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          labelText: 'Address',
+                          labelStyle: TextStyle(color: textColor30),
+                          prefixIcon: Icon(Icons.location_on_rounded, color: textColor30, size: 18),
+                          suffixIcon: TextButton.icon(
+                            style: TextButton.styleFrom(foregroundColor: const Color(0xFF536DFE)),
+                            icon: const Icon(Icons.my_location_rounded, size: 16),
+                            label: const Text('GPS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              messenger.clearSnackBars();
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      ),
+                                      SizedBox(width: 12),
+                                      Text('Fetching location...'),
+                                    ],
+                                  ),
+                                  duration: Duration(days: 1),
+                                ),
+                              );
+                              await appState.fetchCurrentLocation();
+                              messenger.clearSnackBars();
+                              addressController.text = appState.currentAddress;
+                            },
+                          ),
+                          filled: true,
+                          fillColor: Theme.of(context).cardColor,
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: isDark ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                              width: 1.5,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(color: Color(0xFF536DFE)),
+                          ),
+                        ),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter address' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'SERVICE CENTER TYPE',
+                        style: TextStyle(
+                          color: textColor30,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: ['Bike', 'Rickshaw', 'Car', 'Truck'].map((type) {
+                          final isSelected = selectedTypes.contains(type);
+                          return FilterChip(
+                            label: Text(type),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFF536DFE).withValues(alpha: 0.12),
+                            checkmarkColor: const Color(0xFF536DFE),
+                            labelStyle: TextStyle(
+                              color: isSelected ? const Color(0xFF536DFE) : textColor70,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 12,
+                            ),
+                            onSelected: (selected) {
+                              setModalState(() {
+                                if (selected) {
+                                  selectedTypes.add(type);
+                                } else {
+                                  selectedTypes.remove(type);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'SERVICE CENTER PHOTO',
+                        style: TextStyle(
+                          color: textColor30,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () async {
+                          final picker = ImagePicker();
+                          final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                          if (image != null) {
+                            setModalState(() {
+                              localPhotoPath = image.path;
+                            });
+                          }
+                        },
+                        child: Container(
+                          height: 140,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isDark ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: localPhotoPath != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    File(localPhotoPath!),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                  ),
+                                )
+                              : (existingPhotoUrl.isNotEmpty
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(
+                                        existingPhotoUrl,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                      ),
+                                    )
+                                  : Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF536DFE), size: 28),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Upload service center photo',
+                                          style: TextStyle(color: textColor54, fontSize: 11, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    )),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                if (!formKey.currentState!.validate()) return;
+                                if (selectedTypes.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Select at least one type')),
+                                  );
+                                  return;
+                                }
+
+                                setModalState(() => isSaving = true);
+                                final messenger = ScaffoldMessenger.of(context);
+                                final nav = Navigator.of(context);
+
+                                try {
+                                  String finalPhotoUrl = existingPhotoUrl;
+                                  if (localPhotoPath != null) {
+                                    final uploaded = await appState.uploadToCloudinary(localPhotoPath!);
+                                    if (uploaded != null) {
+                                      finalPhotoUrl = uploaded;
+                                    }
+                                  }
+
+                                  await FirebaseFirestore.instance
+                                      .collection('service_centers')
+                                      .doc(data['id'] as String)
+                                      .update({
+                                        'serviceCenterName': nameController.text.trim(),
+                                        'phoneNumber': phoneController.text.trim(),
+                                        'address': addressController.text.trim(),
+                                        'types': selectedTypes,
+                                        'photoUrl': finalPhotoUrl,
+                                      });
+
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Service center updated successfully!'),
+                                      backgroundColor: Color(0xFF10B981),
+                                    ),
+                                  );
+                                  nav.pop(); // Close edit sheet
+                                  nav.pop(); // Close details sheet
+                                } catch (e) {
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('Error updating: $e')),
+                                  );
+                                } finally {
+                                  setModalState(() => isSaving = false);
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF536DFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEditAdBottomSheet(BuildContext context, AppState appState, Map<String, dynamic> data) {
+    final formKey = GlobalKey<FormState>();
+    final titleController = TextEditingController(text: data['title'] as String? ?? '');
+    final descController = TextEditingController(text: data['description'] as String? ?? '');
+    final phoneController = TextEditingController(text: data['phoneNumber'] as String? ?? '');
+    final addressController = TextEditingController(text: data['address'] as String? ?? '');
+    String? localPhotoPath;
+    final existingPhotoUrl = (data['adPhotoUrl'] ?? data['photoUrl']) as String? ?? '';
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final textColor = isDark ? Colors.white : Colors.black;
+            final textColor30 = isDark ? Colors.white30 : Colors.black38;
+            final textColor54 = isDark ? Colors.white54 : Colors.black54;
+
+            InputDecoration inputDecoration(String label, IconData icon) => InputDecoration(
+              labelText: label,
+              labelStyle: TextStyle(color: textColor30),
+              prefixIcon: Icon(icon, color: textColor30, size: 18),
+              filled: true,
+              fillColor: Theme.of(context).cardColor,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: isDark ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                  width: 1.5,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: Color(0xFF536DFE)),
+              ),
+            );
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24,
+              ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: textColor30,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Edit Advertisement',
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: titleController,
+                        textCapitalization: TextCapitalization.sentences,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: inputDecoration('Ad Title', Icons.campaign_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter title' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: descController,
+                        textCapitalization: TextCapitalization.sentences,
+                        maxLines: 3,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: inputDecoration('Description', Icons.description_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter description' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        decoration: inputDecoration('Phone Number', Icons.phone_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter phone number' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: addressController,
+                        maxLines: 1,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          labelText: 'Address',
+                          labelStyle: TextStyle(color: textColor30),
+                          prefixIcon: Icon(Icons.location_on_rounded, color: textColor30, size: 18),
+                          suffixIcon: TextButton.icon(
+                            style: TextButton.styleFrom(foregroundColor: const Color(0xFF536DFE)),
+                            icon: const Icon(Icons.my_location_rounded, size: 16),
+                            label: const Text('GPS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              messenger.clearSnackBars();
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      ),
+                                      SizedBox(width: 12),
+                                      Text('Fetching location...'),
+                                    ],
+                                  ),
+                                  duration: Duration(days: 1),
+                                ),
+                              );
+                              await appState.fetchCurrentLocation();
+                              messenger.clearSnackBars();
+                              addressController.text = appState.currentAddress;
+                            },
+                          ),
+                          filled: true,
+                          fillColor: Theme.of(context).cardColor,
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: isDark ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                              width: 1.5,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(color: Color(0xFF536DFE)),
+                          ),
+                        ),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter address' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'ADVERTISEMENT BANNER PHOTO',
+                        style: TextStyle(
+                          color: textColor30,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () async {
+                          final picker = ImagePicker();
+                          final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                          if (image != null) {
+                            setModalState(() {
+                              localPhotoPath = image.path;
+                            });
+                          }
+                        },
+                        child: Container(
+                          height: 140,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isDark ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: localPhotoPath != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    File(localPhotoPath!),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                  ),
+                                )
+                              : (existingPhotoUrl.isNotEmpty
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(
+                                        existingPhotoUrl,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                      ),
+                                    )
+                                  : Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF536DFE), size: 28),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Upload banner photo',
+                                          style: TextStyle(color: textColor54, fontSize: 11, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    )),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                if (!formKey.currentState!.validate()) return;
+
+                                setModalState(() => isSaving = true);
+                                final messenger = ScaffoldMessenger.of(context);
+                                final nav = Navigator.of(context);
+
+                                try {
+                                  String finalPhotoUrl = existingPhotoUrl;
+                                  if (localPhotoPath != null) {
+                                    final uploaded = await appState.uploadToCloudinary(localPhotoPath!);
+                                    if (uploaded != null) {
+                                      finalPhotoUrl = uploaded;
+                                    }
+                                  }
+
+                                  await FirebaseFirestore.instance
+                                      .collection('ads')
+                                      .doc(data['id'] as String)
+                                      .update({
+                                        'title': titleController.text.trim(),
+                                        'description': descController.text.trim(),
+                                        'phoneNumber': phoneController.text.trim(),
+                                        'address': addressController.text.trim(),
+                                        'adPhotoUrl': finalPhotoUrl,
+                                        'photoUrl': finalPhotoUrl,
+                                      });
+
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Advertisement updated successfully!'),
+                                      backgroundColor: Color(0xFF10B981),
+                                    ),
+                                  );
+                                  nav.pop(); // Close edit sheet
+                                  nav.pop(); // Close details sheet
+                                } catch (e) {
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('Error updating: $e')),
+                                  );
+                                } finally {
+                                  setModalState(() => isSaving = false);
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF536DFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showServiceCenterDetailsBottomSheet(BuildContext context, AppState appState, Map<String, dynamic> data) {
     final name = data['serviceCenterName'] as String? ?? 'Service Station';
     final address = data['address'] as String? ?? 'Address';
     final phone = data['phoneNumber'] as String? ?? '';
+    final ownerGmail = data['ownerGmail'] as String? ?? '';
     final photoUrl = data['photoUrl'] as String?;
     final types = List<String>.from(data['types'] ?? []);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -1039,6 +1660,91 @@ class VehicleHistoryScreen extends StatelessWidget {
                     ),
                   );
                 }).toList(),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  if (phone.isNotEmpty) ...[
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final Uri launchUri = Uri(
+                            scheme: 'tel',
+                            path: phone,
+                          );
+                          await launchUrl(launchUri);
+                        },
+                        icon: const Icon(Icons.phone_rounded, size: 18),
+                        label: const Text('Call'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  if (ownerGmail != appState.currentGmail || appState.currentGmail == null || appState.currentGmail!.isEmpty) ...[
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context); // Close bottom sheet
+                          final dummyVehicle = Vehicle(
+                            id: data['id'] as String? ?? 'service_center',
+                            ownerName: name,
+                            ownerGmail: ownerGmail,
+                            type: VehicleType.car,
+                            model: 'Service Center Profile',
+                            insidePhotoUrl: '',
+                            outsidePhotoUrl: '',
+                            ratePerKm: 0.0,
+                            isServiceOn: true,
+                            latitude: data['latitude'] as double? ?? 0.0,
+                            longitude: data['longitude'] as double? ?? 0.0,
+                            phoneNumber: phone,
+                            address: address,
+                          );
+                          final thread = appState.getOrCreateThread(dummyVehicle);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(threadId: thread.threadId),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                        label: const Text('Chat'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF536DFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ] else if (appState.currentGmail != null && appState.currentGmail!.isNotEmpty) ...[
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          _showEditServiceCenterBottomSheet(context, appState, data);
+                        },
+                        icon: const Icon(Icons.edit_rounded, size: 18),
+                        label: const Text('Edit Listing'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF536DFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: 24),
             ],
@@ -1244,7 +1950,7 @@ class VehicleHistoryScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                   ],
-                  if (ownerGmail != appState.currentGmail)
+                  if (ownerGmail != appState.currentGmail || appState.currentGmail == null || appState.currentGmail!.isEmpty) ...[
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
@@ -1283,6 +1989,24 @@ class VehicleHistoryScreen extends StatelessWidget {
                         label: const Text('Chat', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ),
+                  ] else if (appState.currentGmail != null && appState.currentGmail!.isNotEmpty) ...[
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          _showEditAdBottomSheet(context, appState, data);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF536DFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.edit_rounded, size: 18),
+                        label: const Text('Edit Listing', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 24),
