@@ -4259,7 +4259,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     ),
                     const SizedBox(width: 12),
                   ],
-                  if (ownerGmail != Provider.of<AppState>(context, listen: false).currentGmail)
+                  if (ownerGmail != Provider.of<AppState>(context, listen: false).currentGmail ||
+                      Provider.of<AppState>(context, listen: false).currentGmail == null ||
+                      Provider.of<AppState>(context, listen: false).currentGmail!.isEmpty) ...[
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
@@ -4298,6 +4300,25 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                         label: const Text('Chat Now', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ),
+                  ] else if (Provider.of<AppState>(context, listen: false).currentGmail != null &&
+                      Provider.of<AppState>(context, listen: false).currentGmail!.isNotEmpty) ...[
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          _showEditAdBottomSheet(context, Provider.of<AppState>(context, listen: false), data);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF536DFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.edit_rounded, size: 18),
+                        label: const Text('Edit Listing', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -4688,6 +4709,529 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
       ),
     );
   }
+  void _showEditServiceCenterBottomSheet(BuildContext context, AppState appState, Map<String, dynamic> data) {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController(text: data['serviceCenterName'] as String? ?? '');
+    final phoneController = TextEditingController(text: data['phoneNumber'] as String? ?? '');
+    final addressController = TextEditingController(text: data['address'] as String? ?? '');
+    List<String> selectedTypes = List<String>.from(data['types'] ?? []);
+    String? localPhotoPath;
+    final existingPhotoUrl = data['photoUrl'] as String? ?? '';
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24,
+              ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: context.textColor30,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Edit Service Center',
+                        style: TextStyle(
+                          color: context.textColor,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: nameController,
+                        textCapitalization: TextCapitalization.words,
+                        style: TextStyle(color: context.textColor, fontSize: 14),
+                        decoration: _buildInputDecoration('Service Center Name', Icons.build_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter name' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        style: TextStyle(color: context.textColor, fontSize: 14),
+                        decoration: _buildInputDecoration('Phone Number', Icons.phone_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter phone number' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: addressController,
+                        maxLines: 1,
+                        style: TextStyle(color: context.textColor, fontSize: 14),
+                        textCapitalization: TextCapitalization.words,
+                        decoration: _buildInputDecorationWithLocation('Address', Icons.location_on_rounded, () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          messenger.clearSnackBars();
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  ),
+                                  SizedBox(width: 12),
+                                  Text('Fetching location...'),
+                                ],
+                              ),
+                              duration: Duration(days: 1),
+                            ),
+                          );
+                          await appState.fetchCurrentLocation();
+                          messenger.clearSnackBars();
+                          addressController.text = appState.currentAddress;
+                        }),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter address' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'SERVICE CENTER TYPE',
+                        style: TextStyle(
+                          color: context.textColor30,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: ['Bike', 'Rickshaw', 'Car', 'Truck'].map((type) {
+                          final isSelected = selectedTypes.contains(type);
+                          return FilterChip(
+                            label: Text(type),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFF536DFE).withValues(alpha: 0.12),
+                            checkmarkColor: const Color(0xFF536DFE),
+                            labelStyle: TextStyle(
+                              color: isSelected ? const Color(0xFF536DFE) : context.textColor70,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 12,
+                            ),
+                            onSelected: (selected) {
+                              setModalState(() {
+                                if (selected) {
+                                  selectedTypes.add(type);
+                                } else {
+                                  selectedTypes.remove(type);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'SERVICE CENTER PHOTO',
+                        style: TextStyle(
+                          color: context.textColor30,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () async {
+                          final picker = ImagePicker();
+                          final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                          if (image != null) {
+                            setModalState(() {
+                              localPhotoPath = image.path;
+                            });
+                          }
+                        },
+                        child: Container(
+                          height: 140,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: localPhotoPath != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    File(localPhotoPath!),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                  ),
+                                )
+                              : (existingPhotoUrl.isNotEmpty
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(
+                                        existingPhotoUrl,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                      ),
+                                    )
+                                  : Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF536DFE), size: 28),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Upload service center photo',
+                                          style: TextStyle(color: context.textColor54, fontSize: 11, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    )),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                if (!formKey.currentState!.validate()) return;
+                                if (selectedTypes.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Select at least one type')),
+                                  );
+                                  return;
+                                }
+
+                                setModalState(() => isSaving = true);
+                                final messenger = ScaffoldMessenger.of(context);
+                                final nav = Navigator.of(context);
+
+                                try {
+                                  String finalPhotoUrl = existingPhotoUrl;
+                                  if (localPhotoPath != null) {
+                                    final uploaded = await appState.uploadToCloudinary(localPhotoPath!);
+                                    if (uploaded != null) {
+                                      finalPhotoUrl = uploaded;
+                                    }
+                                  }
+
+                                  await FirebaseFirestore.instance
+                                      .collection('service_centers')
+                                      .doc(data['id'] as String)
+                                      .update({
+                                        'serviceCenterName': nameController.text.trim(),
+                                        'phoneNumber': phoneController.text.trim(),
+                                        'address': addressController.text.trim(),
+                                        'types': selectedTypes,
+                                        'photoUrl': finalPhotoUrl,
+                                      });
+
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Service center updated successfully!'),
+                                      backgroundColor: Color(0xFF10B981),
+                                    ),
+                                  );
+                                  nav.pop(); // Close edit sheet
+                                  nav.pop(); // Close details sheet
+                                } catch (e) {
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('Error updating: $e')),
+                                  );
+                                } finally {
+                                  setModalState(() => isSaving = false);
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF536DFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEditAdBottomSheet(BuildContext context, AppState appState, Map<String, dynamic> data) {
+    final formKey = GlobalKey<FormState>();
+    final titleController = TextEditingController(text: data['title'] as String? ?? '');
+    final descController = TextEditingController(text: data['description'] as String? ?? '');
+    final phoneController = TextEditingController(text: data['phoneNumber'] as String? ?? '');
+    final addressController = TextEditingController(text: data['address'] as String? ?? '');
+    String? localPhotoPath;
+    final existingPhotoUrl = (data['adPhotoUrl'] ?? data['photoUrl']) as String? ?? '';
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24,
+              ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: context.textColor30,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Edit Advertisement',
+                        style: TextStyle(
+                          color: context.textColor,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: titleController,
+                        textCapitalization: TextCapitalization.sentences,
+                        style: TextStyle(color: context.textColor, fontSize: 14),
+                        decoration: _buildInputDecoration('Ad Title', Icons.campaign_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter title' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: descController,
+                        textCapitalization: TextCapitalization.sentences,
+                        maxLines: 3,
+                        style: TextStyle(color: context.textColor, fontSize: 14),
+                        decoration: _buildInputDecoration('Description', Icons.description_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter description' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        style: TextStyle(color: context.textColor, fontSize: 14),
+                        decoration: _buildInputDecoration('Phone Number', Icons.phone_rounded),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter phone number' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: addressController,
+                        maxLines: 1,
+                        style: TextStyle(color: context.textColor, fontSize: 14),
+                        textCapitalization: TextCapitalization.words,
+                        decoration: _buildInputDecorationWithLocation('Address', Icons.location_on_rounded, () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          messenger.clearSnackBars();
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  ),
+                                  SizedBox(width: 12),
+                                  Text('Fetching location...'),
+                                ],
+                              ),
+                              duration: Duration(days: 1),
+                            ),
+                          );
+                          await appState.fetchCurrentLocation();
+                          messenger.clearSnackBars();
+                          addressController.text = appState.currentAddress;
+                        }),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Enter address' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'ADVERTISEMENT BANNER PHOTO',
+                        style: TextStyle(
+                          color: context.textColor30,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () async {
+                          final picker = ImagePicker();
+                          final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                          if (image != null) {
+                            setModalState(() {
+                              localPhotoPath = image.path;
+                            });
+                          }
+                        },
+                        child: Container(
+                          height: 140,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: context.isDarkMode ? const Color(0x1AFFFFFF) : const Color(0x15000000),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: localPhotoPath != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    File(localPhotoPath!),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                  ),
+                                )
+                              : (existingPhotoUrl.isNotEmpty
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(
+                                        existingPhotoUrl,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                      ),
+                                    )
+                                  : Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF536DFE), size: 28),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Upload banner photo',
+                                          style: TextStyle(color: context.textColor54, fontSize: 11, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    )),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                if (!formKey.currentState!.validate()) return;
+
+                                setModalState(() => isSaving = true);
+                                final messenger = ScaffoldMessenger.of(context);
+                                final nav = Navigator.of(context);
+
+                                try {
+                                  String finalPhotoUrl = existingPhotoUrl;
+                                  if (localPhotoPath != null) {
+                                    final uploaded = await appState.uploadToCloudinary(localPhotoPath!);
+                                    if (uploaded != null) {
+                                      finalPhotoUrl = uploaded;
+                                    }
+                                  }
+
+                                  await FirebaseFirestore.instance
+                                      .collection('ads')
+                                      .doc(data['id'] as String)
+                                      .update({
+                                        'title': titleController.text.trim(),
+                                        'description': descController.text.trim(),
+                                        'phoneNumber': phoneController.text.trim(),
+                                        'address': addressController.text.trim(),
+                                        'adPhotoUrl': finalPhotoUrl,
+                                        'photoUrl': finalPhotoUrl,
+                                      });
+
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Advertisement updated successfully!'),
+                                      backgroundColor: Color(0xFF10B981),
+                                    ),
+                                  );
+                                  nav.pop(); // Close edit sheet
+                                  nav.pop(); // Close details sheet
+                                } catch (e) {
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('Error updating: $e')),
+                                  );
+                                } finally {
+                                  setModalState(() => isSaving = false);
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF536DFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   void _showServiceCenterDetailsBottomSheet(BuildContext context, AppState appState, Map<String, dynamic> data) {
     final serviceCenterName = data['serviceCenterName'] as String? ?? 'Service Center Name';
@@ -4896,7 +5440,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                     ),
                     const SizedBox(width: 12),
                   ],
-                  if (ownerGmail != appState.currentGmail) ...[
+                  if (ownerGmail != appState.currentGmail || appState.currentGmail == null || appState.currentGmail!.isEmpty) ...[
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
@@ -4935,40 +5479,17 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> with WidgetsBin
                         ),
                       ),
                     ),
-                  ] else ...[
-                    // Delete listing button for owner
+                  ] else if (appState.currentGmail != null && appState.currentGmail!.isNotEmpty) ...[
+                    // Edit listing button for owner
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () async {
-                          Navigator.pop(context); // Close bottom sheet
-                          final wantDelete = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Delete Service Center'),
-                              content: const Text('Are you sure you want to delete this service center listing?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (wantDelete == true) {
-                            await FirebaseFirestore.instance
-                                .collection('service_centers')
-                                .doc(data['id'] as String)
-                                .delete();
-                          }
+                        onPressed: () {
+                          _showEditServiceCenterBottomSheet(context, appState, data);
                         },
-                        icon: const Icon(Icons.delete_forever_rounded, size: 18),
-                        label: const Text('Delete Listing'),
+                        icon: const Icon(Icons.edit_rounded, size: 18),
+                        label: const Text('Edit Listing'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
+                          backgroundColor: const Color(0xFF536DFE),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
