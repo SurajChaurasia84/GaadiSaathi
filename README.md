@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="assets/logo.png" alt="RentWheels Logo" width="110" height="110" style="border-radius: 22px; box-shadow: 0 8px 24px rgba(0,0,0,0.25);" />
+  <img src="assets/icon.png" alt="RentWheels Logo" width="110" height="110" style="border-radius: 22px; box-shadow: 0 8px 24px rgba(0,0,0,0.25);" />
 
   # **RentWheels • GaadiSaathi**
   ### *Your Trusted Mobility & Vehicle Rental Companion*
