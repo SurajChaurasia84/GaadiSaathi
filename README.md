@@ -2,7 +2,7 @@
 
   <img src="assets/icon.png" alt="RentWheels Logo" width="110" height="110" style="border-radius: 22px; box-shadow: 0 8px 24px rgba(0,0,0,0.25);" />
 
-  # **RentWheels • GaadiSaathi**
+  # **GaadiSaathi**
   ### *Your Trusted Mobility & Vehicle Rental Companion*
 
   **On-Demand Vehicle Rentals, Commercial Logistics & Professional Driver Hiring Platform.**
@@ -16,9 +16,6 @@
     </a>
     <a href="https://github.com/SurajChaurasia84/GaadiSaathi/network/members">
       <img src="https://img.shields.io/github/forks/SurajChaurasia84/GaadiSaathi?style=for-the-badge&logo=github&color=00B0FF" alt="Forks" />
-    </a>
-    <a href="https://github.com/SurajChaurasia84/GaadiSaathi/blob/main/LICENSE">
-      <img src="https://img.shields.io/badge/License-MIT-purple.svg?style=for-the-badge" alt="License" />
     </a>
   </p>
 
@@ -221,9 +218,7 @@ flowchart TD
 ## 📲 Download & Links
 
 - **Google Play Store:** [Download RentWheels (GaadiSaathi)](https://play.google.com/store/apps/details?id=com.gaadisaathi.rent.apps)
-- **Package ID:** `com.gaadisaathi.rent.apps`
 - **GitHub Repository:** [SurajChaurasia84/GaadiSaathi](https://github.com/SurajChaurasia84/GaadiSaathi)
-- **Website:** [GaadiSaathi Official](https://gaadisaathi.com)
 
 <div align="center">
   <sub>Built with ❤️ for drivers, vehicle owners, and travelers.</sub>
